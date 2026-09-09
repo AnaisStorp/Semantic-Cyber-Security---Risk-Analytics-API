@@ -1,0 +1,19 @@
+# development dependencies 
+# install with: pip install -r requirements-dev.txt
+# (this also installs everything in requirements.txt, see the -r line below)
+
+-r requirements.txt
+
+pytest==8.3.4
+# the test runner, collects any function named test_* in any file
+# named test_*.py, runs it, and reports 
+
+pytest-asyncio==0.25.0
+# pytest cannot await an async def test function on its own; it would just
+# create a coroutine object and never run it. This plugin adds the event-loop
+# handling so `async def test_something()` actually executes.
+
+ruff==0.8.6
+# Linter and formatter in one, written in Rust. Replaces flake8 + isort +
+# black. It is fast enough to run on every save, and having it in CI is a
+# visible signal of code quality on a portfolio repo.

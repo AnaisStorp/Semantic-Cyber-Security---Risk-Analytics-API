@@ -1,0 +1,38 @@
+# Python bytecode
+# python compiles the .py files into .pyc files for speed and caches them here
+__pycache__/
+*.py[cod]
+*$py.class
+
+# virtual env 
+.venv/
+venv/
+env/
+
+# packaging / build artefacts
+build/
+dist/
+*.egg-info/
+
+# test and lint caches
+.pytest_cache/  
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# secrets
+# .env holds real config vals, maybe credentials -> never put in git
+.env
+*.env
+!.env.example
+
+# editor and Os noise
+.vscode/
+.idea/
+*DS_Store
+
+# runtime data
+# persistent triple-store data written by fuseki
+data/
+*.log
