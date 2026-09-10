@@ -1,0 +1,352 @@
+# semantic cyber-security and risk analytics (ontology, T-Box)
+
+# this file defines the vocab and the logical rules of the domain :
+# which classea of thing exist, how they may be related, and which new facts
+# a reasoner is entitled to derive from the facts we assert
+
+# In contains no concrete infrastructure. real host and CVEs live in
+# sample_infrastructure.ttl, the a-box.
+
+
+# Prefixes
+# a prefice is pure abbreviation. every identifier in RDF is a full IRI : 
+# writing scs:Host is just shorthand for the complete IRI it expands to.
+
+@prefix scs: <https://anaisstorp.github.io/scsra/ontology#> .
+# ^ "scs" = Semantic Cyber-Security. MY OWN namespace: every term i invent
+#   lives here. Owning the namespace is what stops my :Host from colliding
+#   with somebody else's :Host on the open web.
+
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+# The Web Ontology Language vocabulary: owl:Class, owl:TransitiveProperty,
+# owl:propertyChainAxiom... These are the terms a reasoner recognises and acts on.
+
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+# The RDF core vocabulary. We mainly need rdf:type — so common that Turtle
+# gives it the one-letter keyword "a" (read it as "is a").
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+# RDF Schema: the lightweight layer below OWL. rdfs:subClassOf, rdfs:domain,
+# rdfs:range, plus the human-facing rdfs:label and rdfs:comment.
+
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+# XML Schema datatypes. RDF borrows its literal types from here:
+# xsd:string, xsd:decimal, xsd:integer, xsd:dateTime.
+
+@prefix dcterms: <http://purl.org/dc/terms/> .
+# Dublin Core Terms: the standard vocabulary for metadata about a document
+# (title, creator, description, license). Reusing it instead of inventing
+# scs:title is the whole point of the semantic web - shared vocabularies.
+
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+# Simple Knowledge Organization System. Used here only for skos:definition,
+# to give each term a precise textual definition separate from a casual comment.
+
+# 1. ontology header 
+# metadate about this file, expressed as triples about the ontology itself
+#  Note the IRI has NO trailing "#": the ontology is the document, and
+#  scs:Host (with "#") is a term inside it.
+
+<https://anaisstorp.github.io/scsra/ontology>
+    a               owl:Ontology ;
+    dcterms:title "Semantic Cyber-Security & Risk Analytics Ontology"@en ;
+    dcterms:description
+        """A lightweight OWL 2 RL ontology for modelling IT infrastructure,
+        software inventories, vulnerability dependencies and network
+        reachability, designed so that a rule-based reasoner can infer
+        host-level exposure and multi-hop attack paths."""@en ;
+    dcterms:creator "Anais Storp" ;
+    dcterms:created "2026-09-09"^^xsd:date ;
+    owl:versionInfo "0.1.0" .
+
+# The "@en" suffix is a LANGUAGE TAG: it marks the literal as English text.
+# The "^^xsd:date" suffix is a DATATYPE: it marks the literal as a date rather
+# than a plain string, so a query can compare it chronologically.
+# A literal can have one or the other, never both.
+
+
+# 2. classes
+# a class is a set of things. decalring one is a single triple,
+# everything else here is documentation or hierarchy 
+
+scs:Asset a owl:Class ;
+    rdfs:label   "Asset"@en ;
+    skos:definition "Anything in the IT estate that has value and can therefore be at risk."@en .
+
+scs:Host a owl:Class ;
+    rdfs:subClassOf scs:Asset ;
+    rdfs:label   "Host"@en ;
+    skos:definition "A physical or virtual machine with a network identity."@en .
+# rdfs:subClassOf is the workhorse of RDFS. It licenses exactly one inference,
+# but a very useful one: if X is a Host, then X is also an Asset. Every query
+# about Assets automatically covers Hosts, with no extra data.
+
+scs:Server  a owl:Class ; rdfs:subClassOf scs:Host ; rdfs:label "Server"@en .
+scs:Workstation a owl:Class ; rdfs:subClassOf scs:Host ; rdfs:label "Workstation"@en .
+
+scs:NetworkZone a owl:Class ;
+    rdfs:subClassOf scs:Asset ;
+    rdfs:label   "Network Zone"@en ;
+    skos:definition "A logical network segment such as DMZ, internal LAN or the public internet."@en .
+
+scs:Service a owl:Class ;
+    rdfs:subClassOf scs:Asset ;
+    rdfs:label   "Service"@en ;
+    skos:definition "A process listening on a host, identified by protocol and port."@en .
+
+scs:SoftwareComponent a owl:Class ;
+    rdfs:subClassOf scs:Asset ;
+    rdfs:label   "Software Component"@en ;
+    skos:definition "A specific product at a specific version, e.g. nginx 1.18.0."@en .
+# The VERSION is part of the identity. "nginx" is not vulnerable; "nginx 1.18.0"
+# is. Modelling the versioned artefact, not the product, is what makes the
+# vulnerability link meaningful.
+
+scs:Vulnerability a owl:Class ;
+    rdfs:label   "Vulnerability"@en ;
+    skos:definition "A publicly identified weakness, typically carrying a CVE identifier."@en .
+# NOT a subclass of Asset: a vulnerability is not something you own, it is a
+# property of the world. Keeping the hierarchy honest matters, because
+# "count all assets" must not accidentally count CVEs.
+
+scs:AttackVector a owl:Class ;
+    rdfs:label   "Attack Vector"@en ;
+    skos:definition "The context from which exploitation is possible, following CVSS v3.1 base metric AV."@en .
+
+# Derived classes
+# These are never asserted by hand. The reasoner will place individuals into
+# them. i still declare them, so that queries and the OpenAPI
+# documentation can refer to them.
+
+scs:VulnerableHost a owl:Class ;
+    rdfs:subClassOf scs:Host ;
+    rdfs:label "Vulnerable Host"@en ;
+    skos:definition "INFERRED: a host running software affected by at least one known vulnerability."@en .
+
+scs:ExposedService a owl:Class ;
+    rdfs:subClassOf scs:Service ;
+    rdfs:label "Exposed Service"@en ;
+    skos:definition "INFERRED: a service running on a host located in an internet-facing zone."@en .
+
+# Disjointness
+# States that no individual can belong to both classes. This is the ontology's
+# contribution to the integrity-check endpoint: if the data ever implies that
+# something is both a Host and a Vulnerability, the reasoner derives that it is
+# a member of owl:Nothing, the empty class, which is a logical contradiction
+# and therefore a detectable data-quality error.
+
+scs:Host owl:disjointWith scs:Vulnerability , scs:SoftwareComponent , scs:NetworkZone .
+scs:Service owl:disjointWith scs:Vulnerability .
+
+# Turtle shorthand recap:
+#   ";" = same subject, next predicate
+#   "," = same subject AND same predicate, next object
+#   "." = end of statement
+
+# 3. object properties 
+# an object property is an edge whose target is another resource ( a node) 
+# contrast with datatype properties whose target is a literal 
+
+scs:runs a owl:ObjectProperty ;
+    rdfs:label  "runs"@en ;
+    rdfs:domain scs:Host ;
+    rdfs:range  scs:Service ;
+    skos:definition "Links a host to a service process executing on it."@en .
+
+scs:usesSoftware a owl:ObjectProperty ;
+    rdfs:label  "uses software"@en ;
+    rdfs:domain scs:Service ;
+    rdfs:range  scs:SoftwareComponent .
+
+scs:affectedBy a owl:ObjectProperty ;
+    rdfs:label  "affected by"@en ;
+    rdfs:domain scs:SoftwareComponent ;
+    rdfs:range  scs:Vulnerability .
+
+scs:affects a owl:ObjectProperty ;
+    rdfs:label  "affects"@en ;
+    owl:inverseOf scs:affectedBy .
+# owl:inverseOf means: state the triple in one direction, get the other for
+# free. Assert  nginx_1_18 affectedBy CVE-2021-23017  and the reasoner adds
+# CVE-2021-23017 affects nginx_1_18. This lets a query traverse the graph from
+# either end without duplicating any data.
+
+scs:locatedIn a owl:ObjectProperty ;
+    rdfs:label  "located in"@en ;
+    rdfs:domain scs:Host ;
+    rdfs:range  scs:NetworkZone .
+
+scs:connectsTo a owl:ObjectProperty ;
+    rdfs:label  "connects to"@en ;
+    rdfs:domain scs:Host ;
+    rdfs:range  scs:Host ;
+    skos:definition "A DIRECT, one-hop, directional network path permitted by firewall policy."@en .
+# Deliberately NOT symmetric. A DMZ web server may reach the database server
+# while the reverse is blocked. Declaring owl:SymmetricProperty here would
+# make the reasoner invent firewall rules that do not exist - the model would
+# be more convenient and completely wrong.
+
+scs:canReach a owl:ObjectProperty , owl:TransitiveProperty ;
+    rdfs:label  "can reach"@en ;
+    rdfs:domain scs:Host ;
+    rdfs:range  scs:Host ;
+    skos:definition "INFERRED: multi-hop network reachability, the transitive closure of connectsTo."@en .
+
+scs:connectsTo rdfs:subPropertyOf scs:canReach .
+# These two lines together are the reachability engine, and they are worth
+# reading slowly:
+#   - subPropertyOf lifts every asserted direct edge into canReach.
+#   - TransitiveProperty then closes canReach under composition:
+#     a canReach b and b canReach c  =>  a canReach c.
+# We keep them as SEPARATE properties on purpose. If connectsTo were itself
+# transitive we would lose the ability to ask "which links did a human
+# actually configure?" - and that distinction is exactly what a security audit
+# needs. Asserted facts and derived facts must stay distinguishable.
+
+scs:dependsOn a owl:ObjectProperty , owl:TransitiveProperty ;
+    rdfs:label  "depends on"@en ;
+    rdfs:domain scs:Asset ;
+    rdfs:range  scs:Asset ;
+    skos:definition "Functional dependency: if the object fails, the subject degrades. Transitive."@en .
+# This gives "blast radius" for free: everything that transitively depends on a
+# compromised asset is impacted, however deep the chain.
+
+scs:hasVulnerability a owl:ObjectProperty ;
+    rdfs:label  "has vulnerability"@en ;
+    rdfs:domain scs:Asset ;
+    rdfs:range  scs:Vulnerability ;
+    skos:definition "INFERRED: the asset is exposed to this vulnerability through its software stack."@en .
+# rdfs:domain is scs:Asset, not scs:Host, on purpose. Remember point 2 above:
+# domain ASSERTS a type rather than checking one. A domain of scs:Host would
+# silently retype anything that ever acquires a vulnerability into a Host.
+# Broad domains on inferred properties; narrow ones only where you genuinely
+# want the classification to happen.
+
+scs:hasAttackVector a owl:ObjectProperty ;
+    rdfs:label  "has attack vector"@en ;
+    rdfs:domain scs:Vulnerability ;
+    rdfs:range  scs:AttackVector .
+
+# 4. datatype properties# edghes ending in a literal value ( str , number, date) rather than in
+# another node. Letrals are leaves: nothing can point out to them 
+
+scs:hostname a owl:DatatypeProperty ;
+    rdfs:domain scs:Host ; rdfs:range xsd:string ; rdfs:label "hostname"@en .
+
+scs:ipAddress a owl:DatatypeProperty ;
+    rdfs:domain scs:Host ; rdfs:range xsd:string ; rdfs:label "IP address"@en .
+
+scs:port a owl:DatatypeProperty ;
+    rdfs:domain scs:Service ; rdfs:range xsd:integer ; rdfs:label "port"@en .
+
+scs:productName a owl:DatatypeProperty ;
+    rdfs:domain scs:SoftwareComponent ; rdfs:range xsd:string ; rdfs:label "product name"@en .
+
+scs:version a owl:DatatypeProperty ;
+    rdfs:domain scs:SoftwareComponent ; rdfs:range xsd:string ; rdfs:label "version"@en .
+# xsd:string, not a number: "1.18.0-alpine" is a legitimate version.
+
+scs:cveId a owl:DatatypeProperty ;
+    rdfs:domain scs:Vulnerability ; rdfs:range xsd:string ; rdfs:label "CVE identifier"@en .
+
+scs:cvssScore a owl:DatatypeProperty ;
+    rdfs:domain scs:Vulnerability ; rdfs:range xsd:decimal ; rdfs:label "CVSS base score"@en ;
+    skos:definition "CVSS v3.1 base score, 0.0 to 10.0."@en .
+# xsd:decimal, not xsd:float: decimal is exact, float is binary approximation.
+# For a value that is compared against thresholds like ">= 7.0", exact is right.
+
+scs:criticality a owl:DatatypeProperty ;
+    rdfs:domain scs:Asset ; rdfs:range xsd:integer ; rdfs:label "business criticality"@en ;
+    skos:definition "Business impact of losing this asset, on an ordinal scale of 1 (low) to 5 (critical)."@en .
+
+scs:internetFacing a owl:DatatypeProperty ;
+    rdfs:domain scs:NetworkZone ; rdfs:range xsd:boolean ; rdfs:label "internet facing"@en .
+
+# 5. controlled vocab (named individuals)
+# fixed, enumerable values are better modelled as inidividuals than as strings
+# a type in "NETWORK" is invisible, a typo in scs:AV_Network is a node that
+# matches nothing, which a query will expose immediately 
+
+scs:AV_Network  a owl:NamedIndividual , scs:AttackVector ;
+    rdfs:label "Network"@en ;
+    skos:definition "Remotely exploitable across a routable network. CVSS AV:N."@en .
+
+scs:AV_Adjacent a owl:NamedIndividual , scs:AttackVector ;
+    rdfs:label "Adjacent Network"@en ;
+    skos:definition "Exploitable only from the same logical or physical network segment. CVSS AV:A."@en .
+
+scs:AV_Local    a owl:NamedIndividual , scs:AttackVector ;
+    rdfs:label "Local"@en ;
+    skos:definition "Requires local access, e.g. an existing shell session. CVSS AV:L."@en .
+
+scs:AV_Physical a owl:NamedIndividual , scs:AttackVector ;
+    rdfs:label "Physical"@en ;
+    skos:definition "Requires physical access to the device. CVSS AV:P."@en .
+
+# only AV_Network vulnerabilities let an attacker move from one host to the next.
+
+# 6 the inference axioms 
+# everything aboev was description. These three blocks are the reasoning 
+
+# 6.1 property chain
+scs:hasVulnerability owl:propertyChainAxiom ( scs:runs scs:usesSoftware scs:affectedBy ) .
+# Read as: whenever the graph contains the path
+#     ?host  runs  ?service  usesSoftware  ?software  affectedBy  ?cve
+# then derive the shortcut edge
+#     ?host  hasVulnerability  ?cve
+
+# The parentheses are an RDF COLLECTION -> an ordered list. Order is essential:
+# the chain must compose left to right, each property's range feeding the next
+# property's domain.
+#
+# Why this matters practically: a scanner gives you the three long edges. An
+# analyst wants the short one. Without inference, every query would have to
+# re-join those three hops by hand, and every new indirection (containers,
+# packages, base images) would break every query. With this axiom, the join
+# lives in the ontology, stated once.
+
+#6.2 defined class : vulnerableHost
+[ a owl:Restriction ;
+  owl:onProperty     scs:hasVulnerability ;
+  owl:someValuesFrom scs:Vulnerability
+] rdfs:subClassOf scs:VulnerableHost .
+# The square brackets are a BLANK NODE: an anonymous resource that exists only
+# to hold this structure. It has no IRI because nothing else ever needs to
+# refer to it.
+
+# owl:Restriction with owl:someValuesFrom denotes the class of all things
+# having AT LEAST ONE hasVulnerability edge pointing to a Vulnerability. The
+# axiom then says: everything in that class is a VulnerableHost.
+
+# Combined with 6.1, a completely mundane asset inventory now classifies
+# itself. You state "web01 runs nginx_svc"; you get back "web01 is a
+# VulnerableHost, because of CVE-2021-23017" -> with the derivation traceable.
+
+# why this is written as rdfs:subClassOf and not owl:equivalentClass:
+# most tutorials use equivalentClass here, which additionally licenses the
+# reverse direction (every VulnerableHost must have a vulnerability). We only
+# need the forward direction, and the forward-only form is what the OWL 2 RL
+# profile permits.
+
+# 6.3 defined class : ExposedService
+scs:hostedInZone a owl:ObjectProperty ;
+    rdfs:label "hosted in zone"@en ;
+    rdfs:domain scs:Service ;
+    rdfs:range  scs:NetworkZone ;
+    skos:definition "INFERRED: the network zone of the host running this service."@en .
+
+scs:hostedInZone owl:propertyChainAxiom ( scs:runsOn scs:locatedIn ) .
+
+scs:runsOn a owl:ObjectProperty ;
+    rdfs:label "runs on"@en ;
+    owl:inverseOf scs:runs ;
+    rdfs:domain scs:Service ;
+    rdfs:range  scs:Host .
+
+# A second chain, reusing an inverse: service -> its host -> that host's zone.
+# It shows that inverse properties are first-class citizens of a chain, and it
+# gives a one-hop way to ask "is this service in the DMZ?".
+
+# Deciding which zones count as exposed depends on the boolean
+# scs:internetFacing, and OWL 2 RL cannot branch on a literal's value. That
+# rule therefore belongs in a SPARQL CONSTRUCT query, not here 
