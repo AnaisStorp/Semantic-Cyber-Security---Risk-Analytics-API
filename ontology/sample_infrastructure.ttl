@@ -1,0 +1,255 @@
+# This file contains the FACTS: concretehost, services, software versions, 
+# network edges and vulnerabilities. It contains no class or property# definitions 
+# (those live in the T-Box cbersec.ttl)
+
+# the infrastructure is fictional. histnames use the .example TDL reserved by
+# RFC 2606, public IPs come from the 203.0.113.0/24 documentation block
+#  reserved by RFC 5737; private IPs from RFC 1918. None of these can ever
+#  route to a real System
+
+# The VULNERABILITIES are real and their CVSS v3.1 base scores were taken
+# from NVD. In production this section would be generated automatically from
+# the NVD JSON feed rather than written by hand.
+
+
+@prefix scs:  <https://anaisstorp.github.io/scsra/ontology#> .
+# The VOCABULARY namespace, the classes and properties defined in cybersec.ttl.
+# We only USE these terms here; we never define new ones.
+
+@prefix corp: <https://anaisstorp.github.io/scsra/data#> .
+# The DATA namespace, the individuals of this particular fictional company.
+# Keeping schema and data in separate namespaces is deliberate: it means the
+# ontology can be published and reused by other organisations, each of which
+# brings its own data namespace. 
+
+
+@prefix owl:<http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:<http://www.w3.org/2001/XMLSchema#> .
+
+# 0. document header
+
+<https://anaisstorp.github.io/scsra/data>
+    a  owl:Ontology ;
+    rdfs:label  "Sample corporate infrastructure"@en ;
+    rdfs:comment "Fictional five-host network used for demonstrations and tests."@en ;
+    owl:imports <https://anaisstorp.github.io/scsra/ontology> ;
+    owl:versionInfo "0.1.0" .
+
+# owl: imports declares "this document depends on taht one" 
+
+#1. network zones
+#modelled as individuals, not strings, so host can point at them and so we can 
+# attach the internetFacing flag to the zone rather than to every host
+
+corp:zone_dmz a scs:NetworkZone ;
+    rdfs:label "DMZ"@en ;
+    scs:internetFacing true .
+
+corp:zone_internal a scs:NetworkZone ;
+    rdfs:label "Internal LAN"@en ;
+    scs:internetFacing false .
+
+corp:zone_data a scs:NetworkZone ;
+    rdfs:label "Data tier"@en ;
+    scs:internetFacing false .
+
+# true an dfalse are typed literals : ttl accepts the bar keywords as 
+# shorthand for "true"^^xsd:boolean. Note there are no quotes around them
+# quoting could make them the strings "true" and "false", which compare
+# differenrly and would silently break every query that filteres on them 
+
+
+#2. software components
+# each inidividual is one product at one version. This granularity is the whole
+# point : "nginx" is not vulnerable, "nginx 1.18.0" is 
+
+corp:sw_nginx_1_18_0 a scs:SoftwareComponent ;
+    rdfs:label "nginx 1.18.0"@en ;
+    scs:productName "nginx" ;
+    scs:version      "1.18.0" ;
+    scs:affectedBy   corp:CVE-2021-23017 .
+
+corp:sw_tomcat_9_0_30 a scs:SoftwareComponent ;
+    rdfs:label       "Apache Tomcat 9.0.30"@en ;
+    scs:productName  "Apache Tomcat" ;
+    scs:version      "9.0.30" ;
+    scs:affectedBy   corp:CVE-2020-1938 .
+
+corp:sw_openssh_8_2p1 a scs:SoftwareComponent ;
+    rdfs:label       "OpenSSH 8.2p1"@en ;
+    scs:productName  "OpenSSH" ;
+    scs:version      "8.2p1" ;
+    scs:affectedBy   corp:CVE-2020-15778 .
+# ONE node, referenced by TWO hosts further down. This is the structural payoff
+# of a graph: the software is an entity in its own right, not a column repeated
+# per host. Patch it once, and both hosts stop matching the vulnerability query.
+
+corp:sw_postgresql_13_3 a scs:SoftwareComponent ;
+    rdfs:label       "PostgreSQL 13.3"@en ;
+    scs:productName  "PostgreSQL" ;
+    scs:version      "13.3" ;
+    scs:affectedBy   corp:CVE-2022-1552 .
+
+corp:sw_firefox_128 a scs:SoftwareComponent ;
+    rdfs:label       "Firefox ESR 128"@en ;
+    scs:productName  "Mozilla Firefox ESR" ;
+    scs:version      "128.0" .
+# Deliberately has NO affectedBy edge. A control case: software that exists in
+# the inventory and is not currently linked to any known vulnerability.
+
+
+# 3. vulnerability 
+# CVSS v3.1 base scores as published by NVD 
+corp:CVE-2021-23017 a scs:Vulnerability ;
+    rdfs:label          "CVE-2021-23017"@en ;
+    scs:cveId           "CVE-2021-23017" ;
+    scs:cvssScore       "7.7"^^xsd:decimal ;
+    scs:hasAttackVector scs:AV_Network ;
+    rdfs:comment        "Off-by-one in the nginx DNS resolver; 1-byte memory overwrite. Affects nginx 0.6.18-1.20.0. CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:L"@en .
+
+corp:CVE-2020-1938 a scs:Vulnerability ;
+    rdfs:label          "CVE-2020-1938 (Ghostcat)"@en ;
+    scs:cveId           "CVE-2020-1938" ;
+    scs:cvssScore       "9.8"^^xsd:decimal ;
+    scs:hasAttackVector scs:AV_Network ;
+    rdfs:comment        "AJP connector file read / JSP execution, potential RCE. Affects Tomcat 9.0.0.M1-9.0.30. CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"@en .
+
+corp:CVE-2020-15778 a scs:Vulnerability ;
+    rdfs:label          "CVE-2020-15778"@en ;
+    scs:cveId           "CVE-2020-15778" ;
+    scs:cvssScore       "7.4"^^xsd:decimal ;
+    scs:hasAttackVector scs:AV_Adjacent ;
+    rdfs:comment        "Command injection in scp.c toremote(). Affects OpenSSH through 8.3p1. CVSS:3.1/AV:A/AC:L/PR:L/UI:R/S:U/C:H/I:H/A:H"@en .
+
+# THE INTERESTING ONE. Score 7.4 - higher than the nginx flaw's 7.7? No, lower,
+# but comparable. Yet its attack vector is ADJACENT: exploitable only from the
+# same network segment, and it additionally requires existing privileges and
+# user interaction. It can never be an attacker's first move from the internet.
+# A pure "sort by CVSS" triage cannot express that. The graph can.
+corp:CVE-2022-1552 a scs:Vulnerability ;
+    rdfs:label          "CVE-2022-1552"@en ;
+    scs:cveId           "CVE-2022-1552" ;
+    scs:cvssScore       "8.8"^^xsd:decimal ;
+    scs:hasAttackVector scs:AV_Network ;
+    rdfs:comment   "Autovacuum/REINDEX privilege escalation to superuser. Affects PostgreSQL 13.0-13.6. CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"@en .
+
+#4. hosts
+
+corp:web01 a scs:Server ;
+    rdfs:label      "web01"@en ;
+    scs:hostname    "web01.corp.example" ;
+    scs:ipAddress   "203.0.113.10" ;
+    scs:locatedIn   corp:zone_dmz ;
+    scs:criticality "3"^^xsd:integer .
+# Typed as Server. The reasoner will add "a scs:Host" and "a scs:Asset" via the
+# subclass chain -> we never write those, and writing them would be redundant.
+
+corp:app01 a scs:Server ;
+    rdfs:label      "app01"@en ;
+    scs:hostname    "app01.corp.example" ;
+    scs:ipAddress   "10.20.0.15" ;
+    scs:locatedIn   corp:zone_internal ;
+    scs:criticality "4"^^xsd:integer .
+
+corp:db01 a scs:Server ;
+    rdfs:label      "db01"@en ;
+    scs:hostname    "db01.corp.example" ;
+    scs:ipAddress   "10.30.0.5" ;
+    scs:locatedIn   corp:zone_data ;
+    scs:criticality "5"^^xsd:integer .
+
+corp:backup01 a scs:Server ;
+    rdfs:label      "backup01"@en ;
+    scs:hostname    "backup01.corp.example" ;
+    scs:ipAddress   "10.30.0.20" ;
+    scs:locatedIn   corp:zone_data ;
+    scs:criticality "5"^^xsd:integer .
+
+corp:ws_analyst_07 a scs:Workstation ;
+    rdfs:label      "ws-analyst-07"@en ;
+    scs:hostname    "ws-analyst-07.corp.example" ;
+    scs:ipAddress   "10.20.5.7" ;
+    scs:locatedIn   corp:zone_internal ;
+    scs:criticality "2"^^xsd:integer .
+
+# 5. services 
+# a service is the link between "a machine" and a "piece of software". it is 
+# the middle link of the property chain that derives hasVulnerability
+
+corp:svc_nginx_web01 a scs:Service ;
+    rdfs:label       "nginx on web01:443"@en ;
+    scs:port         "443"^^xsd:integer ;
+    scs:usesSoftware corp:sw_nginx_1_18_0 .
+
+corp:svc_tomcat_app01 a scs:Service ;
+    rdfs:label       "Tomcat on app01:8080"@en ;
+    scs:port         "8080"^^xsd:integer ;
+    scs:usesSoftware corp:sw_tomcat_9_0_30 .
+
+corp:svc_ssh_app01 a scs:Service ;
+    rdfs:label       "SSH on app01:22"@en ;
+    scs:port         "22"^^xsd:integer ;
+    scs:usesSoftware corp:sw_openssh_8_2p1 .
+
+corp:svc_postgres_db01 a scs:Service ;
+    rdfs:label       "PostgreSQL on db01:5432"@en ;
+    scs:port         "5432"^^xsd:integer ;
+    scs:usesSoftware corp:sw_postgresql_13_3 .
+
+corp:svc_ssh_backup01 a scs:Service ;
+    rdfs:label       "SSH on backup01:22"@en ;
+    scs:port         "22"^^xsd:integer ;
+    scs:usesSoftware corp:sw_openssh_8_2p1 .
+# Same software individual as svc_ssh_app01. Two services, one software node.
+
+corp:svc_browser_ws07 a scs:Service ;
+    rdfs:label  "Firefox on ws-analyst-07"@en ;
+    scs:usesSoftware corp:sw_firefox_128 .
+# No port: not everything listens on the network. Absent data is simply absent
+# in RDF -> there is no NULL, and no schema forcing you to invent one. That is
+# the practical face of the open-world assumption.
+
+# 6. which hist runs which services 
+# separated from section 5 for readability 
+
+corp:web01  scs:runs corp:svc_nginx_web01 .
+corp:app01  scs:runs corp:svc_tomcat_app01 , corp:svc_ssh_app01 .
+corp:db01  scs:runs corp:svc_postgres_db01 .
+corp:backup01 scs:runs corp:svc_ssh_backup01 .
+corp:ws_analyst_07 scs:runs corp:svc_browser_ws07 .
+
+# The comma on the app01 line = two triples, one subject, one predicate.
+
+# 7. network topology (the heart)
+# each triple is one direction firewall allowance. 4 asserted edges 
+
+corp:web01 scs:connectsTo corp:app01 .
+corp:app01 scs:connectsTo corp:db01 .
+corp:db01  scs:connectsTo corp:backup01 .
+corp:ws_analyst_07 scs:connectsTo corp:app01 .
+
+# Read them as a firewall administrator would:
+# - the DMZ web server may call the application server
+# - the application server may query the database
+# - the database may push dumps to the backup server
+# - analyst workstations may call the application server
+#
+# Every single one of those is a defensible, ordinary rule. Nobody made a
+# mistake. And yet, once the reasoner closes canReach transitively, web01 -
+# the one machine an anonymous attacker on the internet can touch -> turns out
+# to have a path to backup01, which holds copies of everything.
+
+# 8. business dependencies
+# a different axis from the network. "web01 dependsOn app01" mean the website 
+# breaks if the app server dies, not that packets flow. Aso transitive, so 
+# this gives blast-radius analysis for free 
+
+
+corp:web01 scs:dependsOn corp:app01 .
+corp:app01 scs:dependsOn corp:db01 .
+corp:backup01 scs:dependsOn corp:db01 .
+
+# Derived: web01 dependsOn db01. So "if db01 goes down, what breaks?" returns
+# the public website, two hops away, without anyone having documented that.
+
