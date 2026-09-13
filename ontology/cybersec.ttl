@@ -350,3 +350,21 @@ scs:runsOn a owl:ObjectProperty ;
 # Deciding which zones count as exposed depends on the boolean
 # scs:internetFacing, and OWL 2 RL cannot branch on a literal's value. That
 # rule therefore belongs in a SPARQL CONSTRUCT query, not here 
+
+# 7. TERMS DERVED BY SPARQL RULES (not by OWL)
+
+scs:RemotelyExploitable a owl:Class ;
+    rdfs:subClassOf scs:Vulnerability ;
+    rdfs:label "Remotely Exploitable Vulnerability"@en ;
+    skos:definition "RULE-DERIVED: a vulnerability with attack vector Network and CVSS base score >= 7.0."@en .
+
+scs:EntryPoint a owl:Class ;
+    rdfs:subClassOf scs:Host ;
+    rdfs:label "Entry Point"@en ;
+    skos:definition "RULE-DERIVED: a host in an internet-facing zone carrying at least one remotely exploitable vulnerability."@en .
+
+scs:attackStepTo a owl:ObjectProperty ;
+    rdfs:domain scs:Host ;
+    rdfs:range  scs:Host ;
+    rdfs:label  "attack step to"@en ;
+    skos:definition "RULE-DERIVED: a single hop an attacker can actually take - a direct network edge whose target carries a vulnerability exploitable from the source's position."@en .
