@@ -1,6 +1,5 @@
 # Semantic Cyber-Security & Risk Analytics
 
-[![CI](https://github.com/<anaisstorp>/Semantic-Cyber-Security---Risk-Analytics-API/actions/workflows/ci.yml/badge.svg)](https://github.com/<anaisstorp>/Semantic-Cyber-Security---Risk-Analytics-API/actions/workflows/ci.yml)
 
 A vulnerability scanner tells you which machines have bad locks.
 This tells you which bad lock an attacker on the internet can actually reach, and what is behind it.
