@@ -1,0 +1,14 @@
+# Streamlit reads this automatically from the working directory.
+
+[browser]
+gatherUsageStats = false
+# Opts out of telemetry. Also prevents the first-run prompt asking for an email
+# address, which would hang a container with no terminal attached.
+
+[server]
+headless = true
+# Do not try to open a web browser on start. Correct inside Docker, and correct
+# in CI, where there is no browser to open.
+
+[theme]
+base = "dark"

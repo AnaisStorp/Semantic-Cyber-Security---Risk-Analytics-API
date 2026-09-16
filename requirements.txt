@@ -37,3 +37,6 @@ httpx==0.28.1
 #- to talk to the fuseki sparql server over http
 #- to test the fastapi app : httpx can call an ASGI app
 # directly in-process, without ever opening a network socket( a real network port) 
+
+streamlit==1.41.1
+pandas==2.2.3

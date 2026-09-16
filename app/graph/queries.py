@@ -8,15 +8,15 @@ web framework in sight.
 from __future__ import annotations
 
 from collections import deque
+
 # A double-ended queue with O(1) append and popleft. Using a plain list as a
 # queue means list.pop(0), which is O(n) because every remaining element shifts.
 # deque is the correct data structure for breadth-first search.
-
 from rdflib import Graph, URIRef
+
 # URIRef is the type for "a resource identified by an IRI" - one of the three
 # kinds of RDF term (URIRef, Literal, BNode). We need it to bind values into
 # parameterised queries.
-
 from app.graph.namespaces import SCS
 
 PREFIXES = f"""
@@ -33,7 +33,9 @@ def _local(term) -> str:
 
 #  1. INVENTORY
 
-Q_HOSTS = PREFIXES + """
+Q_HOSTS = (
+    PREFIXES
+    + """
 SELECT ?host ?label ?ip ?zone ?criticality ?vulnerable
 WHERE {
     ?host a scs:Host .
@@ -45,6 +47,7 @@ WHERE {
 }
 ORDER BY DESC(?criticality)
 """
+)
 # OPTIONAL is SPARQL's LEFT JOIN: match if present, leave the variable unbound
 # otherwise, but keep the row. Without it, a host missing any one field would
 # vanish from the results entirely - RDF has no NULL, so absence is the norm and
@@ -72,7 +75,9 @@ def list_hosts(graph: Graph) -> list[dict]:
 
 #  2. RISK POSTURE
 
-Q_ENTRY_POINTS = PREFIXES + """
+Q_ENTRY_POINTS = (
+    PREFIXES
+    + """
 SELECT ?host ?ip ?zone ?cve ?score
 WHERE {
     ?host a scs:EntryPoint ;
@@ -85,6 +90,7 @@ WHERE {
 }
 ORDER BY DESC(?score)
 """
+)
 
 
 def list_entry_points(graph: Graph) -> list[dict]:
@@ -100,7 +106,9 @@ def list_entry_points(graph: Graph) -> list[dict]:
     ]
 
 
-Q_HOST_VULNERABILITIES = PREFIXES + """
+Q_HOST_VULNERABILITIES = (
+    PREFIXES
+    + """
 SELECT ?cve ?score ?vector
 WHERE {
     ?host scs:hasVulnerability ?vuln .
@@ -110,6 +118,7 @@ WHERE {
 }
 ORDER BY DESC(?score)
 """
+)
 # ?host is left FREE. The caller binds it via init_bindings - see below. This is
 # the parameterised-query pattern: one compiled query, many different subjects,
 # and no string building anywhere near user input.
@@ -124,7 +133,9 @@ def host_vulnerabilities(graph: Graph, host: URIRef) -> list[dict]:
 
 #  3. BLAST RADIUS
 
-Q_BLAST_RADIUS = PREFIXES + """
+Q_BLAST_RADIUS = (
+    PREFIXES
+    + """
 SELECT DISTINCT ?affected ?criticality
 WHERE {
     ?affected scs:dependsOn+ ?asset .
@@ -132,6 +143,7 @@ WHERE {
 }
 ORDER BY DESC(?criticality)
 """
+)
 # `scs:dependsOn+` is a PROPERTY PATH: "one or more dependsOn edges". This is
 # the feature that has no equivalent in standard SQL, and the main reason a
 # graph store is the right tool here.
@@ -153,16 +165,22 @@ def blast_radius(graph: Graph, asset: URIRef) -> list[dict]:
 
 
 #  4. ATTACK PATHS
-#  Where SPARQL stops and Python takes over. 
+#  Where SPARQL stops and Python takes over.
 
-Q_ATTACK_EDGES = PREFIXES + """
+Q_ATTACK_EDGES = (
+    PREFIXES
+    + """
 SELECT ?source ?target
 WHERE { ?source scs:attackStepTo ?target }
 """
+)
 
-Q_ENTRY_HOSTS = PREFIXES + """
+Q_ENTRY_HOSTS = (
+    PREFIXES
+    + """
 SELECT DISTINCT ?host WHERE { ?host a scs:EntryPoint }
 """
+)
 
 # WHY NOT JUST A PROPERTY PATH?
 # `?entry scs:attackStepTo+ ?target` correctly answers "is ?target reachable?"
@@ -212,12 +230,14 @@ def find_attack_paths(graph: Graph, max_depth: int = 6) -> list[dict]:
                 if neighbour in path:
                     continue  # never revisit a host within one path
                 new_path = path + [neighbour]
-                paths.append({
-                    "entry_point": _local(entry),
-                    "target": _local(neighbour),
-                    "hops": len(new_path) - 1,
-                    "path": [_local(node) for node in new_path],
-                })
+                paths.append(
+                    {
+                        "entry_point": _local(entry),
+                        "target": _local(neighbour),
+                        "hops": len(new_path) - 1,
+                        "path": [_local(node) for node in new_path],
+                    }
+                )
                 if neighbour not in seen:
                     seen.add(neighbour)
                     queue.append(new_path)
@@ -242,17 +262,23 @@ def rank_attack_paths(graph: Graph, paths: list[dict]) -> list[dict]:
         score = max CVSS along the path  x  target criticality / 5
     """
     criticality: dict[str, int] = {}
-    for row in graph.query(PREFIXES + """
+    for row in graph.query(
+        PREFIXES
+        + """
         SELECT ?host ?c WHERE { ?host a scs:Host ; scs:criticality ?c }
-    """):
+    """
+    ):
         criticality[_local(row.host)] = int(row.c)
 
     worst_cvss: dict[str, float] = {}
-    for row in graph.query(PREFIXES + """
+    for row in graph.query(
+        PREFIXES
+        + """
         SELECT ?host (MAX(?s) AS ?worst) WHERE {
             ?host scs:hasVulnerability ?v . ?v scs:cvssScore ?s .
         } GROUP BY ?host
-    """):
+    """
+    ):
         worst_cvss[_local(row.host)] = float(row.worst)
     # SPARQL supports GROUP BY and aggregates (MAX, MIN, SUM, COUNT, AVG),
     # same idea as SQL. The (expr AS ?name) form is required for aggregates.
@@ -268,13 +294,15 @@ def rank_attack_paths(graph: Graph, paths: list[dict]) -> list[dict]:
     return paths
 
 
-
 #  5. INTEGRITY CHECK
 
 
-Q_INTEGRITY = PREFIXES + """
+Q_INTEGRITY = (
+    PREFIXES
+    + """
 SELECT ?thing WHERE { ?thing a <http://www.w3.org/2002/07/owl#Nothing> }
 """
+)
 
 
 def integrity_violations(graph: Graph) -> list[str]:
@@ -288,3 +316,48 @@ def integrity_violations(graph: Graph) -> list[str]:
     project description promises, and it costs one query.
     """
     return [_local(row.thing) for row in graph.query(Q_INTEGRITY)]
+
+
+Q_VULNERABILITIES = (
+    PREFIXES
+    + """
+SELECT ?vuln ?cve ?score ?vector ?remote (COUNT(DISTINCT ?host) AS ?affected_hosts)
+WHERE {
+    ?vuln a scs:Vulnerability ;
+          scs:cveId ?cve ;
+          scs:cvssScore ?score ;
+          scs:hasAttackVector ?vector .
+    BIND( EXISTS { ?vuln a scs:RemotelyExploitable } AS ?remote )
+    OPTIONAL { ?host scs:hasVulnerability ?vuln }
+}
+GROUP BY ?vuln ?cve ?score ?vector ?remote
+ORDER BY DESC(?score)
+"""
+)
+# GROUP BY + COUNT: same semantics as SQL. Every non-aggregated variable in the
+# SELECT must appear in the GROUP BY, or SPARQL rejects the query.
+# COUNT(DISTINCT ?host) counts distinct hosts, so a host affected through two
+# different services is not double-counted.
+
+
+def list_vulnerabilities(graph: Graph) -> list[dict]:
+    return [
+        {
+            "cve": str(r.cve),
+            "cvss": float(r.score),
+            "attack_vector": _local(r.vector),
+            "remotely_exploitable": bool(r.remote),
+            "affected_hosts": int(r.affected_hosts),
+        }
+        for r in graph.query(Q_VULNERABILITIES)
+    ]
+
+
+Q_HOST_EXISTS = PREFIXES + "ASK { ?host a scs:Host }"
+# ASK returns a single boolean instead of a table - the cheapest possible
+# existence check. Used to turn "unknown host" into a clean 404 instead of an
+# empty result the caller has to interpret.
+
+
+def host_exists(graph: Graph, host: URIRef) -> bool:
+    return bool(graph.query(Q_HOST_EXISTS, initBindings={"host": host}).askAnswer)
