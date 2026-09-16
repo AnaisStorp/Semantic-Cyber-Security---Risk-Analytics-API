@@ -14,6 +14,7 @@ import threading
 # we need a lock. FastAPI serves synchronous work on a thread pool, so 2
 # requests really can run in parallel OS threads.
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 # dataclass generates __inits, __repr__ and __eq__ from annotatied attributes
@@ -59,8 +60,13 @@ class GraphStats:
 class KnowledgeGraph:
     """Owns the rdflib Graph and everything done to it"""
 
-    def __init__(self, sources: tuple[Path, ...] = DEFAULT_SOURCES) -> None:
+    def __init__(
+        self,
+        sources: tuple[Path, ...] = DEFAULT_SOURCES,
+        csv_sources: Sequence[Path] = (),
+    ) -> None:
         self._sources = sources
+        self._csv_sources = tuple(csv_sources)
         self._graph = Graph()
         self._lock = threading.Lock()
         self.stats = GraphStats()
@@ -85,7 +91,11 @@ class KnowledgeGraph:
             stats = GraphStats(asserted=len(graph))
             # len(Graph) is the number of triples. Graph also supports
             # `in`, iteration, and set operations - it behaves like a set of triples.
+            for csv_path in self._csv_sources:
+                from app.ingest.to_rdf import graph_from_scan_csv
 
+                graph += graph_from_scan_csv(csv_path)
+                logger.info("Ingested scan export %s", csv_path.name)
             if reason:
                 # Imported here, not at module top, purely to keep the dependency
                 # direction clear: store -> reasoner, never the reverse.

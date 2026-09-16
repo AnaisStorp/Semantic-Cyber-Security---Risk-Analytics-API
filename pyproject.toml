@@ -8,6 +8,12 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:rdflib.*",
+    "ignore::DeprecationWarning:pyparsing.*",
+    "ignore:.*Pyparsing.*:DeprecationWarning",
+]
