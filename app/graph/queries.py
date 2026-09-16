@@ -1,7 +1,7 @@
 """SPARQL queries and the attack-path search.
 
 Queries return plain Python dicts. Converting those to Pydantic response models
-is Stage 4's job - this module must stay usable from a script or a test with no
+is Stage 4's job, this module must stay usable from a script or a test with no
 web framework in sight.
 """
 
@@ -14,10 +14,12 @@ from collections import deque
 # deque is the correct data structure for breadth-first search.
 from rdflib import Graph, URIRef
 
+from app.graph.namespaces import CORP, SCS
+
 # URIRef is the type for "a resource identified by an IRI" - one of the three
 # kinds of RDF term (URIRef, Literal, BNode). We need it to bind values into
 # parameterised queries.
-from app.graph.namespaces import SCS
+
 
 PREFIXES = f"""
 PREFIX scs:  <{SCS}>
@@ -361,3 +363,89 @@ Q_HOST_EXISTS = PREFIXES + "ASK { ?host a scs:Host }"
 
 def host_exists(graph: Graph, host: URIRef) -> bool:
     return bool(graph.query(Q_HOST_EXISTS, initBindings={"host": host}).askAnswer)
+
+
+Q_HOST_ZONES = (
+    PREFIXES
+    + """
+SELECT ?host ?zone WHERE { ?host a scs:Host ; scs:locatedIn ?zone }
+"""
+)
+
+
+def host_zone_map(graph: Graph) -> dict[str, str]:
+    """{'web01': 'zone_dmz', ...} - needed to evaluate the adjacent-vector rule."""
+    return {_local(r.host): _local(r.zone) for r in graph.query(Q_HOST_ZONES)}
+
+
+Q_ZONES = (
+    PREFIXES
+    + """
+SELECT ?zone ?facing WHERE {
+    ?zone a scs:NetworkZone .
+    OPTIONAL { ?zone scs:internetFacing ?facing }
+}
+"""
+)
+
+
+def zone_map(graph: Graph) -> dict[str, bool]:
+    return {_local(r.zone): bool(r.facing) for r in graph.query(Q_ZONES)}
+
+
+Q_NETWORK_EDGES = (
+    PREFIXES
+    + """
+SELECT ?source ?target WHERE { ?source scs:connectsTo ?target }
+"""
+)
+
+
+def network_edges(graph: Graph) -> list[tuple[str, str]]:
+    return [(_local(r.source), _local(r.target)) for r in graph.query(Q_NETWORK_EDGES)]
+
+
+def attack_edges(graph: Graph) -> list[tuple[str, str]]:
+    return [(_local(r.source), _local(r.target)) for r in graph.query(Q_ATTACK_EDGES)]
+
+
+Q_TARGET_VULNS = (
+    PREFIXES
+    + """
+SELECT ?cve ?score ?vector ?remote WHERE {
+    ?target scs:hasVulnerability ?vuln .
+    ?vuln scs:cveId ?cve ; scs:cvssScore ?score ; scs:hasAttackVector ?vector .
+    BIND( EXISTS { ?vuln a scs:RemotelyExploitable } AS ?remote )
+}
+ORDER BY DESC(?score)
+"""
+)
+
+
+def attack_step_evidence(
+    graph: Graph, source: str, target: str, zones: dict[str, str], threshold: float
+) -> list[dict]:
+    """Which CVEs justify this specific hop, and under which rule."""
+    same_zone = zones.get(source) is not None and zones.get(source) == zones.get(target)
+    evidence = []
+    for r in graph.query(Q_TARGET_VULNS, initBindings={"target": CORP[target]}):
+        vector, score = _local(r.vector), float(r.score)
+        if bool(r.remote):
+            rule = "Remotely exploitable — reachable from any connected host"
+            usable = True
+        elif vector == "AV_Adjacent" and same_zone and score >= threshold:
+            rule = f"Adjacent vector — both hosts sit in {zones[source]}"
+            usable = True
+        else:
+            rule = "Present but not usable from this position"
+            usable = False
+        evidence.append(
+            {
+                "cve": str(r.cve),
+                "cvss": score,
+                "attack_vector": vector,
+                "justification": rule,
+                "usable": usable,
+            }
+        )
+    return evidence

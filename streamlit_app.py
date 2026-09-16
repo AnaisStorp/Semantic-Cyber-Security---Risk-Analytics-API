@@ -1,75 +1,104 @@
+"""Overview page : the entry point Streamlit runs first."""
+
 from __future__ import annotations
 
-import pandas as pd
 import streamlit as st
 
-from app.graph import queries as q
-from app.graph.store import KnowledgeGraph
+from app.dashboard import charts
+from app.dashboard.data import (
+    attack_paths,
+    entry_points_df,
+    findings_df,
+    get_graph,
+    vulnerabilities_df,
+)
 
 st.set_page_config(
-    page_title="semantic cyber-security analytics",
+    page_title="Semantic Cyber-Security Analytics",
+    page_icon="🛡️",
     layout="wide",
 )
+# Must be the first Streamlit call in the script, and only on the entry page.
 
+kg = get_graph()
+vulns = vulnerabilities_df()
+paths = attack_paths()
+entries = entry_points_df()
 
-@st.cache_resource(show_spinner="Loading knowledge graph and running reasoner...")
-def load_graph() -> KnowledgeGraph:
-    """Build the reasoned graph once per server process.
-
-    THE MOST IMPORTANT LINE IN THIS FILE.
-    """
-    kg = KnowledgeGraph()
-    kg.load()
-    return kg
-
-
-kg = load_graph()
-
-st.title("Semantic cyber-security and risk analytics")
+st.title("Semantic Cyber-Security & Risk Analytics")
 st.caption(
-    "Attack-path discovery over an RDF/OWL knowledge graph. "
-    "Findings below are inferred, not asserted"
+    "Attack-path discovery over an RDF/OWL knowledge graph. Everything below is " "inferred ."
 )
 
-stats = kg.stats
-hosts = q.list_hosts(kg.graph)
-entry_points = q.list_entry_points(kg.graph)
-paths = q.rank_attack_paths(kg.graph, q.find_attack_paths(kg.graph))
-
 c1, c2, c3, c4 = st.columns(4)
-
-c1.metric("Hosts", len(hosts))
-c2.metric("Vulnerable hosts", sum(h["vulnerable"] for h in hosts))
-c3.metric("Entry points", len({e["host"] for e in entry_points}))
+c1.metric("Hosts", len(findings_df()["host"].unique()) if not findings_df().empty else 0)
+c2.metric("Known vulnerabilities", len(vulns))
+c3.metric("Entry points", entries["host"].nunique() if not entries.empty else 0)
 c4.metric("Attack paths", len(paths))
 
 st.divider()
 
-st.subheader("Inference")
-i1, i2, i3 = st.columns(3)
-i1.metric("Asserted triples", stats.asserted)
-i2.metric("After OWL 2 RL closure", stats.after_owl, delta=stats.after_owl - stats.asserted)
-i3.metric("After SPARQL rules", stats.after_rules, delta=stats.after_rules - stats.after_owl)
+if paths:
+    worst = paths[0]
+    st.subheader("Highest-risk path")
+    st.markdown(
+        f"### {'  ->  '.join(worst['path'])}"
+        f"\n\n**{worst['hops']} hops** · peak CVSS **{worst['max_cvss']}** · "
+        f"target criticality **{worst['target_criticality']}** · "
+        f"risk score **{worst['risk_score']}**"
+    )
+    st.caption(
+        "Not one of these hops was written down. Each is the composition of a "
+        "firewall rule someone approved and a CVE someone triaged — separately, "
+        "and both reasonably."
+    )
 
 st.divider()
 
-st.subheader("Asset inventory")
-st.dataframe(pd.DataFrame(hosts), use_container_width=True, hide_index=True)
+left, right = st.columns([3, 2])
 
-st.subheader("Attack paths")
-if paths:
-    df = pd.DataFrame(paths)
-    df["route"] = df["path"].apply(" → ".join)
+with left:
+    st.subheader("Vulnerabilities by severity")
+    st.altair_chart(charts.severity_chart(vulns), use_container_width=True)
+
+with right:
+    st.subheader("Findings per host")
+    st.altair_chart(charts.findings_per_host_chart(findings_df()), use_container_width=True)
+
+with st.expander("Table view"):
     st.dataframe(
-        df[["route", "hops", "risk_score", "max_cvss", "target_criticality"]],
-        use_container_width=True,
-        hide_index=True,
+        vulns.sort_values("cvss", ascending=False), use_container_width=True, hide_index=True
     )
-else:
-    st.info("No attack paths found.")
 
-st.caption(
-    "`risk_score` is a heuristic ordering aid (max CVSS on path × target "
-    "criticality ÷ 5), not a validated metric. CVSS scores vulnerabilities in "
-    "isolation and has no notion of chained exploitation."
-)
+st.divider()
+
+st.subheader("What the reasoner added")
+s = kg.stats
+i1, i2, i3 = st.columns(3)
+i1.metric("Asserted triples", s.asserted)
+i2.metric("After OWL 2 RL closure", s.after_owl, delta=s.after_owl - s.asserted)
+i3.metric("After SPARQL rules", s.after_rules, delta=s.after_rules - s.after_owl)
+
+with st.expander("How this works"):
+    st.markdown(
+        """
+**Two inference engines, because one is not enough.**
+
+*OWL 2 RL* composes relationships: a host runs a service that uses software
+affected by a CVE, therefore the host has that vulnerability (a property chain);
+A connects to B, B connects to C, therefore A can reach C (transitivity).
+
+It cannot compare values `CVSS ≥ 7.0`, `internetFacing = true`,
+`vector IS AV_Network` are all outside the profile by design, because allowing
+them is what makes description logics slow or non-terminating.
+
+So *SPARQL `CONSTRUCT` rules* run on top, forward-chained to a fixpoint, adding
+the value-conditional facts. A bounded breadth-first search then reconstructs the
+routes, because SPARQL property paths tell you a path **exists** without telling
+you what it **is**.
+
+**On `risk_score`:** it is `peak CVSS × target criticality ÷ 5` — a heuristic
+ordering aid of our own, not a standard. CVSS deliberately scores a vulnerability
+in isolation and has no notion of chained exploitation.
+        """
+    )

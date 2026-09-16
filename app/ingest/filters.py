@@ -34,8 +34,7 @@ def normalise_column_names(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def strip_string_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Remove leading/trailing whitespace from every text cell.
-    """
+    """Remove leading/trailing whitespace from every text cell."""
     out = df.copy()
     for col in out.columns:
         if pd.api.types.is_string_dtype(out[col]):
