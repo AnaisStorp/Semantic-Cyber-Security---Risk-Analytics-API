@@ -81,12 +81,28 @@ class BlastRadiusEntry(BaseModel):
     criticality: int | None = None
 
 
+class ShaclViolation(BaseModel):
+    focus_node: str = Field(description="The node that failed a shape, e.g. 'db01'.")
+    path: str | None = Field(default=None, description="The property checked, if any.")
+    value: str | None = Field(default=None, description="The offending value, if one exists.")
+    message: str
+    severity: str
+
+
 class IntegrityReport(BaseModel):
-    consistent: bool
+    consistent: bool = Field(
+        description="True only when both checks pass: no logical contradiction "
+        "and every node conforms to the SHACL shapes.",
+    )
     violations: list[str] = Field(
         default=[],
         description="Individuals the reasoner placed in owl:Nothing - i.e. data "
         "that contradicts the ontology's disjointness axioms.",
+    )
+    shacl_violations: list[ShaclViolation] = Field(
+        default=[],
+        description="Nodes that do not match ontology/shapes.ttl: missing required "
+        "properties, wrong datatypes, values out of range.",
     )
 
 

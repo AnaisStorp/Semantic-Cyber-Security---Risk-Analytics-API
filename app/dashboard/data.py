@@ -8,6 +8,7 @@ from app.config import settings
 from app.dashboard.theme import severity_band
 from app.graph import queries as q
 from app.graph.store import KnowledgeGraph
+from app.graph.validation import shacl_violations
 
 
 @st.cache_resource(show_spinner="Loading knowledge graph and running the reasoner…")
@@ -49,3 +50,13 @@ def entry_points_df() -> pd.DataFrame:
 def attack_paths() -> list[dict]:
     g = get_graph().graph
     return q.rank_attack_paths(g, q.find_attack_paths(g, max_depth=settings.max_attack_depth))
+
+
+@st.cache_data(show_spinner=False)
+def integrity_report() -> dict:
+    """Same two checks as GET /risk/integrity: OWL contradictions, then SHACL shapes."""
+    g = get_graph().graph
+    return {
+        "owl_violations": q.integrity_violations(g),
+        "shacl_violations": pd.DataFrame(shacl_violations(g)),
+    }

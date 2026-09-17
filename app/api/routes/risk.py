@@ -11,6 +11,7 @@ from app.api.deps import get_graph, resolve_host
 from app.config import settings
 from app.graph import queries as q
 from app.graph.store import KnowledgeGraph
+from app.graph.validation import shacl_violations
 from app.models import AttackPath, BlastRadiusEntry, EntryPoint, IntegrityReport
 
 router = APIRouter(prefix="/risk", tags=["risk"])
@@ -80,12 +81,22 @@ async def blast_radius(
 
 @router.get("/integrity", response_model=IntegrityReport, summary="Semantic integrity check")
 async def integrity(kg: GraphDep) -> dict:
-    """Detect data that contradicts the ontology.
+    """Detect data that contradicts the ontology or does not have the expected shape.
 
-    Looks for individuals the reasoner placed in owl:Nothing - the empty class.
-    Membership there is a logical impossibility, so it means the data violates a
-    disjointness axiom: something asserted to be both a Host and a Vulnerability,
-    for instance. Clean data returns consistent=true with an empty list.
+    Two checks, because they catch different mistakes:
+    - OWL: individuals the reasoner placed in owl:Nothing - the empty class.
+      Membership there is a logical impossibility, so the data violates a
+      disjointness axiom: something both a Host and a Vulnerability, for instance.
+    - SHACL: nodes that break a shape in ontology/shapes.ttl - a host with no
+      zone, a CVSS score of 12, an unknown attack vector. OWL cannot see these,
+      because under the open-world assumption missing data is just unknown.
+
+    Clean data returns consistent=true with two empty lists.
     """
     violations = await run_in_threadpool(q.integrity_violations, kg.graph)
-    return {"consistent": not violations, "violations": violations}
+    shape_errors = await run_in_threadpool(shacl_violations, kg.graph)
+    return {
+        "consistent": not violations and not shape_errors,
+        "violations": violations,
+        "shacl_violations": shape_errors,
+    }

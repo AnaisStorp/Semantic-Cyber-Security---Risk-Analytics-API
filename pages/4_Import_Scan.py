@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from app.graph.validation import validate_scan_graph
 from app.ingest.loader import read_scan_csv
 from app.ingest.pipeline import clean_scan_dataframe
 from app.ingest.schema import IngestError
@@ -34,7 +35,11 @@ c1.metric("Rows read", len(raw))
 c2.metric("Rows kept", len(clean), delta=len(clean) - len(raw))
 c3.metric("Findings", int(clean["cve_id"].notna().sum()))
 
-tab_raw, tab_clean, tab_rdf = st.tabs(["As uploaded", "After cleaning", "As RDF"])
+graph = dataframe_to_graph(clean)
+
+tab_raw, tab_clean, tab_rdf, tab_shacl = st.tabs(
+    ["As uploaded", "After cleaning", "As RDF", "SHACL validation"]
+)
 
 with tab_raw:
     st.dataframe(raw, use_container_width=True, hide_index=True)
@@ -49,8 +54,27 @@ with tab_clean:
     )
 
 with tab_rdf:
-    graph = dataframe_to_graph(clean)
     st.metric("Triples generated", len(graph))
     turtle = graph.serialize(format="turtle")
     st.code(turtle[:6000], language="turtle")
     st.download_button("Download as Turtle", turtle, file_name="scan.ttl", mime="text/turtle")
+
+with tab_shacl:
+    with st.spinner("Reasoning and validating…"):
+        violations = validate_scan_graph(graph)
+    if not violations:
+        st.success(
+            "Every host, service, software and CVE in this scan matches `ontology/shapes.ttl`."
+        )
+    else:
+        st.error(
+            f"{len(violations)} SHACL violation(s). These rows would be silently incomplete in the analysis."
+        )
+        st.dataframe(violations, use_container_width=True, hide_index=True)
+    st.caption(
+        "Cleaning checks the table; SHACL checks the graph. The scan is merged with the "
+        "ontology and the network model (a scanner does not know which zone faces the "
+        "internet), reasoned, and validated in an isolated graph. A zone that is not "
+        "in the network model, for instance, shows up here as a zone with no "
+        "`internetFacing` value."
+    )

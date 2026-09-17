@@ -1,0 +1,165 @@
+# semantic cyber-security and risk analytics (SHACL shapes)
+
+# cybersec.ttl says what a reasoner may DERIVE. this file says what the data
+# must LOOK LIKE. the two answer different questions:
+#   OWL   (open world)   : a host with no IP address? "the IP is unknown".
+#   SHACL (closed world) : a host with no IP address? "that is an error".
+
+# rdfs:domain cannot do this job: it ASSERTS a type, it never checks one. give
+# a CVE a scs:hostname by mistake and OWL quietly concludes it is a Host.
+# a shape reports it instead.
+
+# this file is NOT loaded into the knowledge graph. it is a separate "shapes
+# graph", handed to the validator next to the data graph (app/graph/validation.py).
+
+
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+# The SHACL vocabulary: sh:NodeShape, sh:property, sh:minCount...
+
+@prefix scs:  <https://anaisstorp.github.io/scsra/ontology#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+
+# How to read a shape
+#   sh:targetClass  -> which nodes are checked: every instance of that class,
+#                      subclasses included (a Server is checked as a Host)
+#   sh:property [ sh:path p ; ... ] -> constraints on the values of p
+#   sh:minCount 1   -> the property is required
+#   sh:maxCount 1   -> at most one value
+#   sh:datatype     -> the value must be a literal of this type
+#   sh:class        -> the value must be a node of this class
+#   sh:message      -> the human sentence returned when the check fails
+
+
+# 1. host
+
+scs:HostShape a sh:NodeShape ;
+    sh:targetClass scs:Host ;
+    rdfs:label "Host shape"@en ;
+    sh:property [
+        sh:path     scs:hostname ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "A host needs exactly one hostname (string)."@en ;
+    ] ;
+    sh:property [
+        sh:path     scs:ipAddress ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern  "^([0-9]{1,3}\\.){3}[0-9]{1,3}$" ;
+        sh:message  "A host needs exactly one IPv4 address, written like 10.0.0.1."@en ;
+    ] ;
+    sh:property [
+        sh:path     scs:locatedIn ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:class    scs:NetworkZone ;
+        sh:message  "A host must sit in exactly one network zone."@en ;
+    ] ;
+    # Without a zone, the EntryPoint rule cannot tell whether the host faces the
+    # internet, so the host silently disappears from every attack path.
+    sh:property [
+        sh:path     scs:criticality ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ; sh:maxInclusive 5 ;
+        sh:message  "Criticality is optional, but must be one integer from 1 to 5."@en ;
+    ] .
+# sh:pattern is a regular expression. It checks the SHAPE of the string, not
+# that each octet is <= 255: good enough to catch a swapped column.
+
+
+# 2. network zone
+
+scs:NetworkZoneShape a sh:NodeShape ;
+    sh:targetClass scs:NetworkZone ;
+    sh:property [
+        sh:path     scs:internetFacing ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:boolean ;
+        sh:message  "A zone must say whether it faces the internet (true or false)."@en ;
+    ] .
+# The quoted string "true" is an xsd:string, not an xsd:boolean. The datatype
+# constraint catches exactly the silent mistake described in
+# sample_infrastructure.ttl.
+
+
+# 3. service
+
+scs:ServiceShape a sh:NodeShape ;
+    sh:targetClass scs:Service ;
+    sh:property [
+        sh:path     [ sh:inversePath scs:runs ] ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:message  "A service must run on exactly one host."@en ;
+    ] ;
+    # sh:inversePath follows the edge backwards: "who runs this service?".
+    # The data only ever states  host runs service , never the reverse.
+    sh:property [
+        sh:path     scs:usesSoftware ;
+        sh:minCount 1 ;
+        sh:class    scs:SoftwareComponent ;
+        sh:message  "A service must use at least one software component."@en ;
+    ] ;
+    sh:property [
+        sh:path     scs:port ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 1 ; sh:maxInclusive 65535 ;
+        sh:message  "Port is optional, but must be one integer from 1 to 65535."@en ;
+    ] .
+# port has no minCount on purpose: the Firefox service listens on nothing.
+
+
+# 4. software component
+
+scs:SoftwareComponentShape a sh:NodeShape ;
+    sh:targetClass scs:SoftwareComponent ;
+    sh:property [
+        sh:path     scs:productName ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "A software component needs exactly one product name."@en ;
+    ] ;
+    sh:property [
+        sh:path     scs:version ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:message  "A software component needs exactly one version: nginx is not vulnerable, nginx 1.18.0 is."@en ;
+    ] ;
+    sh:property [
+        sh:path     scs:affectedBy ;
+        sh:class    scs:Vulnerability ;
+        sh:message  "affectedBy must point to a Vulnerability."@en ;
+    ] .
+
+
+# 5. vulnerability
+
+scs:VulnerabilityShape a sh:NodeShape ;
+    sh:targetClass scs:Vulnerability ;
+    sh:property [
+        sh:path     scs:cveId ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:pattern  "^CVE-[0-9]{4}-[0-9]{4,}$" ;
+        sh:message  "A vulnerability needs exactly one CVE identifier, like CVE-2021-23017."@en ;
+    ] ;
+    sh:property [
+        sh:path     scs:cvssScore ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:datatype xsd:decimal ;
+        sh:minInclusive 0.0 ; sh:maxInclusive 10.0 ;
+        sh:message  "A vulnerability needs exactly one CVSS score, a decimal from 0.0 to 10.0."@en ;
+    ] ;
+    # A missing score is the dangerous case: the RemotelyExploitable rule
+    # compares it to the threshold, finds nothing, and the CVE never shows up
+    # on an attack path. No error, just a wrong, reassuring answer.
+    sh:property [
+        sh:path     scs:hasAttackVector ;
+        sh:minCount 1 ; sh:maxCount 1 ;
+        sh:in       ( scs:AV_Network scs:AV_Adjacent scs:AV_Local scs:AV_Physical ) ;
+        sh:message  "A vulnerability needs exactly one attack vector from the CVSS list."@en ;
+    ] .
+# sh:in is a closed list. A typo like scs:AV_Netwrok is a valid IRI, so OWL
+# would happily accept it; this constraint does not.

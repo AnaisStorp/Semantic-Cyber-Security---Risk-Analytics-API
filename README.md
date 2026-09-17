@@ -38,6 +38,7 @@ So I modelled the estate as a graph, wrote down the rules of the domain in OWL, 
 * Runs an **OWL 2 RL reasoner** to derive structural facts nobody wrote down
 * Applies **SPARQL rules** for the logic OWL cannot express, anything that depends on a value like a CVSS score
 * Reconstructs **attack paths** where every single hop is justified by a named CVE whose attack vector allows that exact move
+* Validates the graph against **SHACL shapes**, so missing or malformed data is reported instead of silently dropping hosts from the analysis
 * Reads a **vulnerability scanner CSV export** with pandas, validates it, cleans it and converts it to RDF
 * Serves all of it as a **Streamlit dashboard** and an **async FastAPI** REST API
 * Ships as a single **Docker image**
@@ -103,8 +104,9 @@ That last rule is the one I care about most. **CVE-2020-15778 on backup01 scores
 1. The Turtle files (and optionally a cleaned scanner CSV) are loaded into one rdflib graph: 317 triples
 2. OWL 2 RL closure adds 635 triples
 3. The SPARQL rules add 9 more, the ones that actually matter
-4. BFS turns the attack steps into full paths
-5. Streamlit and FastAPI both read from that same graph
+4. SHACL checks the result against `ontology/shapes.ttl` (on request, via `/risk/integrity`)
+5. BFS turns the attack steps into full paths
+6. Streamlit and FastAPI both read from that same graph
 
 There are two kinds of input on purpose. A scanner knows software and CVEs and changes every night, but it has no idea which zone faces the internet. That comes from the network configuration, which rarely changes.
 
@@ -166,11 +168,11 @@ Copy `app/.env.example` to `.env`. Everything is optional, the defaults in `app/
 
 | Page | What it shows |
 |---|---|
-| **Overview** | Key numbers for the estate, the riskiest path, a severity chart, and what the reasoner added at each stage |
+| **Overview** | Key numbers for the estate, the riskiest path, a severity chart, what the reasoner added at each stage, and a data quality panel (OWL contradictions and SHACL violations) |
 | **Assets** | Filterable inventory, with each host's inferred vulnerabilities and blast radius |
 | **Attack Paths** | Every path with **evidence for each hop**: which CVE justifies each move, and which flaws are present but *not usable from that position* |
 | **Network** | The estate as a diagram. Grey edges are the firewall rules, red edges are the ones an attacker can actually walk |
-| **Import a scan** | Upload a scanner CSV and watch it get validated, cleaned and converted to RDF, step by step |
+| **Import a scan** | Upload a scanner CSV and watch it get validated, cleaned, converted to RDF and checked against the SHACL shapes, step by step |
 | **SPARQL** | A read only console over the full graph, so derived triples can be queried as if someone had written them |
 
 The Attack Paths page is the one worth looking at. Everything else is inventory. That page is an argument with citations.
@@ -187,7 +189,7 @@ The Attack Paths page is the one worth looking at. Everything else is inventory.
 | `GET /api/v1/risk/entry-points` | Hosts an external attacker can reach first |
 | `GET /api/v1/risk/attack-paths` | Ranked paths, filterable by risk and depth |
 | `GET /api/v1/risk/blast-radius/{id}` | Everything that suffers if this asset falls |
-| `GET /api/v1/risk/integrity` | Semantic consistency check |
+| `GET /api/v1/risk/integrity` | OWL consistency check plus SHACL shape validation |
 | `POST /api/v1/sparql` | Read only SPARQL |
 
 **On "async":** the HTTP layer really is async. But `rdflib` is synchronous and CPU bound, so every call into the graph goes through `run_in_threadpool`. That does not make queries faster, because the GIL prevents real parallelism for CPU bound Python. What it does is keep the event loop free, so one slow query slows down one request instead of the whole service. Putting a blocking call inside `async def` and calling it asynchronous would be worse than not using async at all.
@@ -235,13 +237,15 @@ One policy decision worth stating: **a corrupt finding does not delete the asset
 | `app/graph/store.py` | loading, materialisation, thread safe access |
 | `app/graph/reasoner.py` | OWL 2 RL closure and SPARQL rules |
 | `app/graph/queries.py` | SPARQL queries and the attack path search |
+| `app/graph/validation.py` | SHACL validation with pySHACL |
 | `app/api/routes/` | assets, risk, sparql |
 | `app/dashboard/` | theme, Altair charts, Graphviz diagram |
 | `ontology/cybersec.ttl` | TBox: classes, properties, inference axioms |
 | `ontology/sample_infrastructure.ttl` | ABox: the fictional estate |
+| `ontology/shapes.ttl` | SHACL shapes: what valid data must look like |
 | `data/samples/` | example scanner export |
 | `pages/` | Streamlit pages |
-| `tests/` | 87 tests |
+| `tests/` | 96 tests |
 | `pyproject.toml` | dependencies and tool config |
 | `uv.lock` | exact versions of every package |
 
@@ -251,7 +255,7 @@ Dependencies only go one way: routes use deps, deps use the graph, the graph use
 ## Tests
 
 ```bash
-uv run pytest -v               # 87 tests
+uv run pytest -v               # 96 tests
 uv run ruff check .            # lint
 uv run ruff format --check .   # formatting
 ```
@@ -270,6 +274,8 @@ assert len(set(graph.subject_objects(SCS.attackStepTo))) == 4
 This is not hypothetical. During development a single missing argument disabled three of the five rules and the app looked completely fine. These lines catch it in well under a second.
 
 **Negative assertions always come with a positive one.** `assert CVE_X not in remotely_exploitable` passes trivially when the whole feature is dead, so on its own it means nothing.
+
+**SHACL tests damage a copy of the graph on purpose**: a host without an IP address, a CVSS score of 12, a typo in the attack vector, `"true"` written as a string. Each one must come back as a named violation. One test goes through the whole pipeline to show why OWL alone is not enough: a CVE given a `hostname` by mistake is silently retyped as a Host by `rdfs:domain`, and only the shapes notice that this "host" has no IP and no zone.
 
 **The ingestion tests are mostly about failure**: missing columns, malformed CSV, scores out of range, boundary values at exactly 0.0 and 10.0, unknown attack vectors. Real input is broken far more often than it is valid. Every filter in `filters.py` has its own test.
 

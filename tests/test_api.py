@@ -105,7 +105,7 @@ async def test_blast_radius(client):
 
 async def test_integrity_is_consistent(client):
     r = await client.get(f"{API}/risk/integrity")
-    assert r.json() == {"consistent": True, "violations": []}
+    assert r.json() == {"consistent": True, "violations": [], "shacl_violations": []}
 
 
 async def test_sparql_select_sees_inferred_facts(client):

@@ -10,6 +10,7 @@ from app.dashboard.data import (
     entry_points_df,
     findings_df,
     get_graph,
+    integrity_report,
     vulnerabilities_df,
 )
 
@@ -76,6 +77,29 @@ i1.metric("Asserted triples", s.asserted)
 i2.metric("After OWL 2 RL closure", s.after_owl, delta=s.after_owl - s.asserted)
 i3.metric("After SPARQL rules", s.after_rules, delta=s.after_rules - s.after_owl)
 
+st.divider()
+
+st.subheader("Data quality")
+report = integrity_report()
+owl_errors, shape_errors = report["owl_violations"], report["shacl_violations"]
+q1, q2 = st.columns(2)
+q1.metric("OWL contradictions", len(owl_errors))
+q2.metric("SHACL violations", len(shape_errors))
+if not owl_errors and shape_errors.empty:
+    st.success(
+        "The graph is consistent and every node matches `ontology/shapes.ttl`. "
+        "The findings above are built on complete data."
+    )
+else:
+    st.error(
+        "Some data is contradictory or incomplete. A host with no zone or a CVE with "
+        "no score does not crash anything: it silently drops out of the attack paths."
+    )
+    if owl_errors:
+        st.markdown("**In `owl:Nothing`:** " + ", ".join(f"`{e}`" for e in owl_errors))
+    if not shape_errors.empty:
+        st.dataframe(shape_errors, use_container_width=True, hide_index=True)
+
 with st.expander("How this works"):
     st.markdown(
         """
@@ -93,6 +117,11 @@ So *SPARQL `CONSTRUCT` rules* run on top, forward-chained to a fixpoint, adding
 the value-conditional facts. A bounded breadth-first search then reconstructs the
 routes, because SPARQL property paths tell you a path **exists** without telling
 you what it **is**.
+
+**Data quality: SHACL.** The reasoner never complains about missing data: under
+the open-world assumption, a host with no zone just has an unknown zone. SHACL
+shapes add the closed-world check - required properties, datatypes, ranges - so
+incomplete data is reported instead of silently ignored.
 
 **On `risk_score`:** it is `peak CVSS × target criticality ÷ 5` — a heuristic
 ordering aid of our own, not a standard. CVSS deliberately scores a vulnerability
