@@ -11,7 +11,7 @@ from app.graph import queries as q
 
 st.title("Attack paths")
 st.caption(
-    "A network path** says a corridor exists. An attack path additionally "
+    "A network path says a corridor exists. An attack path additionally "
     "requires, at every single hop, a vulnerability whose attack vector permits "
     "that move from where the attacker is standing."
 )

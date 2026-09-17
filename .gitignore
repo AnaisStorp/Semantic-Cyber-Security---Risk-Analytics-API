@@ -4,7 +4,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# virtual env 
+# virtual env
 .venv*/
 venv*/
 env/
@@ -15,7 +15,7 @@ dist/
 *.egg-info/
 
 # test and lint caches
-.pytest_cache/  
+.pytest_cache/
 .ruff_cache/
 .mypy_cache/
 .coverage

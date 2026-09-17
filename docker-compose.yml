@@ -1,0 +1,30 @@
+# Runs the dashboard and the REST API together from ONE image, with different
+# commands. Two entry points onto the same graph layer.
+
+services:
+  dashboard:
+    build: .
+    image: scsra:local
+    ports:
+      - "8501:8501"
+    environment:
+      SCSRA_CVSS_THRESHOLD: "7.0"
+      SCSRA_MAX_ATTACK_DEPTH: "6"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8501/_stcore/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 25s
+      retries: 3
+    restart: unless-stopped
+
+  api:
+    build: .
+    image: scsra:local
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      SCSRA_CVSS_THRESHOLD: "7.0"
+      SCSRA_ENABLE_SPARQL_ENDPOINT: "true"
+    restart: unless-stopped

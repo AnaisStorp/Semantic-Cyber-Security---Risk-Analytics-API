@@ -1,5 +1,5 @@
-# This file contains the FACTS: concretehost, services, software versions, 
-# network edges and vulnerabilities. It contains no class or property# definitions 
+# This file contains the FACTS: concretehost, services, software versions,
+# network edges and vulnerabilities. It contains no class or property# definitions
 # (those live in the T-Box cbersec.ttl)
 
 # the infrastructure is fictional. histnames use the .example TDL reserved by
@@ -20,7 +20,7 @@
 # The DATA namespace, the individuals of this particular fictional company.
 # Keeping schema and data in separate namespaces is deliberate: it means the
 # ontology can be published and reused by other organisations, each of which
-# brings its own data namespace. 
+# brings its own data namespace.
 
 
 @prefix owl:<http://www.w3.org/2002/07/owl#> .
@@ -36,10 +36,10 @@
     owl:imports <https://anaisstorp.github.io/scsra/ontology> ;
     owl:versionInfo "0.1.0" .
 
-# owl: imports declares "this document depends on taht one" 
+# owl: imports declares "this document depends on taht one"
 
 #1. network zones
-#modelled as individuals, not strings, so host can point at them and so we can 
+#modelled as individuals, not strings, so host can point at them and so we can
 # attach the internetFacing flag to the zone rather than to every host
 
 corp:zone_dmz a scs:NetworkZone ;
@@ -54,15 +54,15 @@ corp:zone_data a scs:NetworkZone ;
     rdfs:label "Data tier"@en ;
     scs:internetFacing false .
 
-# true an dfalse are typed literals : ttl accepts the bar keywords as 
+# true an dfalse are typed literals : ttl accepts the bar keywords as
 # shorthand for "true"^^xsd:boolean. Note there are no quotes around them
 # quoting could make them the strings "true" and "false", which compare
-# differenrly and would silently break every query that filteres on them 
+# differenrly and would silently break every query that filteres on them
 
 
 #2. software components
 # each inidividual is one product at one version. This granularity is the whole
-# point : "nginx" is not vulnerable, "nginx 1.18.0" is 
+# point : "nginx" is not vulnerable, "nginx 1.18.0" is
 
 corp:sw_nginx_1_18_0 a scs:SoftwareComponent ;
     rdfs:label "nginx 1.18.0"@en ;
@@ -99,8 +99,8 @@ corp:sw_firefox_128 a scs:SoftwareComponent ;
 # the inventory and is not currently linked to any known vulnerability.
 
 
-# 3. vulnerability 
-# CVSS v3.1 base scores as published by NVD 
+# 3. vulnerability
+# CVSS v3.1 base scores as published by NVD
 corp:CVE-2021-23017 a scs:Vulnerability ;
     rdfs:label          "CVE-2021-23017"@en ;
     scs:cveId           "CVE-2021-23017" ;
@@ -173,8 +173,8 @@ corp:ws_analyst_07 a scs:Workstation ;
     scs:locatedIn   corp:zone_internal ;
     scs:criticality "2"^^xsd:integer .
 
-# 5. services 
-# a service is the link between "a machine" and a "piece of software". it is 
+# 5. services
+# a service is the link between "a machine" and a "piece of software". it is
 # the middle link of the property chain that derives hasVulnerability
 
 corp:svc_nginx_web01 a scs:Service ;
@@ -210,8 +210,8 @@ corp:svc_browser_ws07 a scs:Service ;
 # in RDF -> there is no NULL, and no schema forcing you to invent one. That is
 # the practical face of the open-world assumption.
 
-# 6. which hist runs which services 
-# separated from section 5 for readability 
+# 6. which hist runs which services
+# separated from section 5 for readability
 
 corp:web01  scs:runs corp:svc_nginx_web01 .
 corp:app01  scs:runs corp:svc_tomcat_app01 , corp:svc_ssh_app01 .
@@ -222,7 +222,7 @@ corp:ws_analyst_07 scs:runs corp:svc_browser_ws07 .
 # The comma on the app01 line = two triples, one subject, one predicate.
 
 # 7. network topology (the heart)
-# each triple is one direction firewall allowance. 4 asserted edges 
+# each triple is one direction firewall allowance. 4 asserted edges
 
 corp:web01 scs:connectsTo corp:app01 .
 corp:app01 scs:connectsTo corp:db01 .
@@ -241,9 +241,9 @@ corp:ws_analyst_07 scs:connectsTo corp:app01 .
 # to have a path to backup01, which holds copies of everything.
 
 # 8. business dependencies
-# a different axis from the network. "web01 dependsOn app01" mean the website 
-# breaks if the app server dies, not that packets flow. Aso transitive, so 
-# this gives blast-radius analysis for free 
+# a different axis from the network. "web01 dependsOn app01" mean the website
+# breaks if the app server dies, not that packets flow. Aso transitive, so
+# this gives blast-radius analysis for free
 
 
 corp:web01 scs:dependsOn corp:app01 .
@@ -252,4 +252,3 @@ corp:backup01 scs:dependsOn corp:db01 .
 
 # Derived: web01 dependsOn db01. So "if db01 goes down, what breaks?" returns
 # the public website, two hops away, without anyone having documented that.
-

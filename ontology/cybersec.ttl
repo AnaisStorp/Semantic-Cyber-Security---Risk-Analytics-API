@@ -9,7 +9,7 @@
 
 
 # Prefixes
-# a prefice is pure abbreviation. every identifier in RDF is a full IRI : 
+# a prefice is pure abbreviation. every identifier in RDF is a full IRI :
 # writing scs:Host is just shorthand for the complete IRI it expands to.
 
 @prefix scs: <https://anaisstorp.github.io/scsra/ontology#> .
@@ -42,7 +42,7 @@
 # Simple Knowledge Organization System. Used here only for skos:definition,
 # to give each term a precise textual definition separate from a casual comment.
 
-# 1. ontology header 
+# 1. ontology header
 # metadate about this file, expressed as triples about the ontology itself
 #  Note the IRI has NO trailing "#": the ontology is the document, and
 #  scs:Host (with "#") is a term inside it.
@@ -67,7 +67,7 @@
 
 # 2. classes
 # a class is a set of things. decalring one is a single triple,
-# everything else here is documentation or hierarchy 
+# everything else here is documentation or hierarchy
 
 scs:Asset a owl:Class ;
     rdfs:label   "Asset"@en ;
@@ -143,9 +143,9 @@ scs:Service owl:disjointWith scs:Vulnerability .
 #   "," = same subject AND same predicate, next object
 #   "." = end of statement
 
-# 3. object properties 
-# an object property is an edge whose target is another resource ( a node) 
-# contrast with datatype properties whose target is a literal 
+# 3. object properties
+# an object property is an edge whose target is another resource ( a node)
+# contrast with datatype properties whose target is a literal
 
 scs:runs a owl:ObjectProperty ;
     rdfs:label  "runs"@en ;
@@ -228,7 +228,7 @@ scs:hasAttackVector a owl:ObjectProperty ;
     rdfs:range  scs:AttackVector .
 
 # 4. datatype properties# edghes ending in a literal value ( str , number, date) rather than in
-# another node. Letrals are leaves: nothing can point out to them 
+# another node. Letrals are leaves: nothing can point out to them
 
 scs:hostname a owl:DatatypeProperty ;
     rdfs:domain scs:Host ; rdfs:range xsd:string ; rdfs:label "hostname"@en .
@@ -265,7 +265,7 @@ scs:internetFacing a owl:DatatypeProperty ;
 # 5. controlled vocab (named individuals)
 # fixed, enumerable values are better modelled as inidividuals than as strings
 # a type in "NETWORK" is invisible, a typo in scs:AV_Network is a node that
-# matches nothing, which a query will expose immediately 
+# matches nothing, which a query will expose immediately
 
 scs:AV_Network  a owl:NamedIndividual , scs:AttackVector ;
     rdfs:label "Network"@en ;
@@ -285,8 +285,8 @@ scs:AV_Physical a owl:NamedIndividual , scs:AttackVector ;
 
 # only AV_Network vulnerabilities let an attacker move from one host to the next.
 
-# 6 the inference axioms 
-# everything aboev was description. These three blocks are the reasoning 
+# 6 the inference axioms
+# everything aboev was description. These three blocks are the reasoning
 
 # 6.1 property chain
 scs:hasVulnerability owl:propertyChainAxiom ( scs:runs scs:usesSoftware scs:affectedBy ) .
@@ -349,7 +349,7 @@ scs:runsOn a owl:ObjectProperty ;
 
 # Deciding which zones count as exposed depends on the boolean
 # scs:internetFacing, and OWL 2 RL cannot branch on a literal's value. That
-# rule therefore belongs in a SPARQL CONSTRUCT query, not here 
+# rule therefore belongs in a SPARQL CONSTRUCT query, not here
 
 # 7. TERMS DERVED BY SPARQL RULES (not by OWL)
 

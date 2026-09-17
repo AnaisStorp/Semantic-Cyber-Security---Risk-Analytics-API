@@ -117,16 +117,26 @@ Two sources on purpose: a scanner knows software and CVEs and changes nightly; i
 ### Docker (nothing to install but Docker)
 
 ```bash
-docker build -t scsra .
-docker run --rm -p 8501:8501 scsra
+docker compose up --build
 ```
 
-Open **http://localhost:8501**.
+- Dashboard — http://localhost:8501
+- API docs — http://localhost:8000/docs
 
-Or pull the published image:
+Or pull the published multi-architecture image:
 
 ```bash
-docker run --rm -p 8501:8501 <anaisstorp>/scsra:latest
+docker run --rm -p 8501:8501 <your-dockerhub-user>/scsra:latest
+```
+
+### Make
+
+```bash
+make help      # list every target
+make install   # venv + dependencies + git hooks
+make check     # lint and test, exactly what CI runs
+make run       # the dashboard
+make up        # dashboard + API in containers
 ```
 
 ### Locally

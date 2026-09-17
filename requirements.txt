@@ -5,7 +5,7 @@
 fastapi==0.115.6
 # the async web framework for building APIs with Python 3.6+ based on standard Python type hints
 # this give us 2 things that matter:
-# 1. async/await request handling, so a slow SPARQL query doent block 
+# 1. async/await request handling, so a slow SPARQL query doent block
 #.    other incoming requests
 # 2. Automatic OpenAPI/Swagger documentation generated from python type
 # hints : visitors to the repo get an interactive APi browser gratis
@@ -19,12 +19,12 @@ rdflib==7.1.1
 # the core RDF library in python, it gives:
 #- a graph object : an in-memory set of triples
 #- parsers/serialisers for turtle, RDF/XML, JSON-LS, N-triples
-# - a full SPARQL 1.1 query engine, so we can run real sparql without a 
-# seperate databse server 
+# - a full SPARQL 1.1 query engine, so we can run real sparql without a
+# seperate databse server
 
 owlrl==7.1.2
-# the reasoner. rdflib stores and queries triples but does NOT 
-# infer anything 
+# the reasoner. rdflib stores and queries triples but does NOT
+# infer anything
 
 # config
 pydantic-settings==2.7.1
@@ -36,7 +36,7 @@ httpx==0.28.1
 # an async-capable HTTP client. we need it for 2 reasons:
 #- to talk to the fuseki sparql server over http
 #- to test the fastapi app : httpx can call an ASGI app
-# directly in-process, without ever opening a network socket( a real network port) 
+# directly in-process, without ever opening a network socket( a real network port)
 
 streamlit==1.41.1
 pandas==2.2.3

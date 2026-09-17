@@ -1,7 +1,7 @@
 #  TURTLE CHEAT SHEET
 
 
-# The prefixes: WHO says the word 
+# The prefixes: WHO says the word
 @prefix scs:  <https://anaisstorp.github.io/scsra/ontology#> .
 #   The namespace. Every word we invented: Host, runs, affectedBy, cvssScore.
 #   No logical power on its own — it is our private dictionary.
@@ -41,7 +41,7 @@
 # rdfs and owl are read by the reasoner. scs words are only nodes it moves through.
 
 
-# The syntax 
+# The syntax
 ex:thing  a          ex:Class ;           # "is a"        — declaration
           ex:arrow   ex:otherThing ;      # → resource    — you can keep walking
           ex:value   "text"@en ;          # → literal     — dead end
@@ -56,7 +56,7 @@ ex:thing  a          ex:Class ;           # "is a"        — declaration
 #  ( ) = ordered list
 
 
-# Every line is one of three kinds 
+# Every line is one of three kinds
 # 1. DECLARATION   scs:Host a owl:Class .              → does nothing alone
 # 2. DOCUMENTATION rdfs:label "Host"@en .              → reasoner ignores it
 # 3. AXIOM         scs:canReach a owl:TransitiveProperty .  → CREATES NEW TRIPLES

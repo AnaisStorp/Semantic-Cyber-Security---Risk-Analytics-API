@@ -25,9 +25,7 @@ paths = attack_paths()
 entries = entry_points_df()
 
 st.title("Semantic Cyber-Security & Risk Analytics")
-st.caption(
-    "Attack-path discovery over an RDF/OWL knowledge graph. Everything below is inferred ."
-)
+st.caption("Attack-path discovery over an RDF/OWL knowledge graph. Everything below is inferred .")
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Hosts", len(findings_df()["host"].unique()) if not findings_df().empty else 0)

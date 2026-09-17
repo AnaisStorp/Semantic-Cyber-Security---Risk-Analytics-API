@@ -4,22 +4,22 @@ from __future__ import annotations
 
 FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif"
 
-PLANE = "#08090a" 
-SURFACE = "#111214"  
-SURFACE_RAISED = "#17191c" 
-BORDER = "#26282d" 
+PLANE = "#08090a"
+SURFACE = "#111214"
+SURFACE_RAISED = "#17191c"
+BORDER = "#26282d"
 
-INK_PRIMARY = "#f4f4f5" 
+INK_PRIMARY = "#f4f4f5"
 INK_SECONDARY = "#a1a1aa"
-INK_MUTED = "#71717a" 
+INK_MUTED = "#71717a"
 
-GRID = "#1e2024"  
-BASELINE = "#2a2d32"  
-NODE_NEUTRAL = "#22252a"  
+GRID = "#1e2024"
+BASELINE = "#2a2d32"
+NODE_NEUTRAL = "#22252a"
 
-SLOT_1 = "#6f6bef"  
-SLOT_2 = "#13a3a3" 
-SLOT_3 = "#c98500" 
+SLOT_1 = "#6f6bef"
+SLOT_2 = "#13a3a3"
+SLOT_3 = "#c98500"
 SLOT_4 = "#d55181"
 
 ATTACK_VECTOR_COLORS: dict[str, str] = {

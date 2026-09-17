@@ -12,7 +12,7 @@ from app.ingest.to_rdf import dataframe_to_graph
 st.title("Import a scan")
 st.caption(
     "Drop a vulnerability-scanner CSV export here to see it validated, cleaned and "
-    "converted to RDF. The import is previewed in an **isolated graph** and does not "
+    "converted to RDF. The import is previewed in an isolated graph and does not "
     "modify the running one, so this page can never leave the dashboard in a state "
     "that depends on what someone uploaded."
 )
@@ -26,7 +26,7 @@ try:
     raw = read_scan_csv(uploaded)
     clean = clean_scan_dataframe(raw)
 except IngestError as exc:
-    st.error(f"**Rejected:** {exc}")
+    st.error(f"Rejected:{exc}")
     st.stop()
 
 c1, c2, c3 = st.columns(3)
@@ -38,7 +38,7 @@ tab_raw, tab_clean, tab_rdf = st.tabs(["As uploaded", "After cleaning", "As RDF"
 
 with tab_raw:
     st.dataframe(raw, use_container_width=True, hide_index=True)
-    st.caption("Read with `dtype=str` — every value is still text at this point.")
+    st.caption("Read with `dtype=str`, every value is still text at this point.")
 
 with tab_clean:
     st.dataframe(clean, use_container_width=True, hide_index=True)
