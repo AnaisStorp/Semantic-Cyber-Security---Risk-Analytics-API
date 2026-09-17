@@ -7,7 +7,7 @@ import pytest
 
 from app.dashboard.charts import findings_per_host_chart, severity_chart
 from app.dashboard.diagram import build_network_dot
-from app.dashboard.theme import ATTACK_VECTOR_COLORS, severity_band
+from app.dashboard.theme import ATTACK_VECTOR_COLORS, SURFACE, severity_band
 
 HOSTS = [
     {"id": "web01", "zone": "zone_dmz", "vulnerable": True, "criticality": 3},
@@ -80,7 +80,7 @@ def test_severity_chart_builds_without_error():
     )
     chart = severity_chart(df)
     spec = chart.to_dict()
-    assert spec["background"] == "#1a1a19"
+    assert spec["background"] == SURFACE
 
 
 def test_severity_chart_pins_the_axis_to_zero():
