@@ -231,6 +231,20 @@ def test_filter_by_attack_vector():
     assert list(out["attack_vector"]) == ["AV_Network", "AV_Adjacent"]
 
 
+def test_filter_by_zone():
+    df = pd.DataFrame({"zone": ["zone_dmz", "zone_data", "zone_internal", None]})
+    out = f.filter_by_zone(df, {"zone_dmz", "zone_data"})
+    assert list(out["zone"]) == ["zone_dmz", "zone_data"]
+
+
+def test_filter_findings_only_drops_assets_without_a_cve():
+    df = ingest_scan_csv("data/samples/scan_2026_09_15.csv")
+    out = f.filter_findings_only(df)
+    assert len(out) == 5
+    assert out["cve_id"].notna().all()
+    assert "ws-analyst-07" not in set(out["hostname"].str.split(".").str[0])
+
+
 def test_pipeline_on_the_committed_sample_file():
     df = ingest_scan_csv("data/samples/scan_2026_09_15.csv")
     assert len(df) == 6  # 7 rows, one duplicate collapsed

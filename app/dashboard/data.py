@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+from rdflib import URIRef
 
 from app.config import settings
 from app.dashboard.theme import severity_band
@@ -18,7 +19,7 @@ def get_graph() -> KnowledgeGraph:
 
 @st.cache_data(show_spinner=False)
 def hosts_df() -> pd.DataFrame:
-    return pd.DataFrame(get_graph().graph and q.list_hosts(get_graph().graph))
+    return pd.DataFrame(q.list_hosts(get_graph().graph))
 
 
 @st.cache_data(show_spinner=False)
@@ -34,7 +35,7 @@ def findings_df() -> pd.DataFrame:
     g = get_graph().graph
     rows = []
     for host in q.list_hosts(g):
-        for v in q.host_vulnerabilities(g, __import__("rdflib").URIRef(host["iri"])):
+        for v in q.host_vulnerabilities(g, URIRef(host["iri"])):
             rows.append({"host": host["id"], "zone": host["zone"], **v})
     return pd.DataFrame(rows)
 

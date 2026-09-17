@@ -15,7 +15,7 @@ from app.dashboard.data import (
 
 st.set_page_config(
     page_title="Semantic Cyber-Security Analytics",
-    page_icon=":D",
+    page_icon="🛡️",
     layout="wide",
 )
 
