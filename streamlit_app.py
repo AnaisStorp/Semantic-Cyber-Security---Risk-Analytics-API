@@ -15,10 +15,9 @@ from app.dashboard.data import (
 
 st.set_page_config(
     page_title="Semantic Cyber-Security Analytics",
-    page_icon="🛡️",
+    page_icon=":D",
     layout="wide",
 )
-# Must be the first Streamlit call in the script, and only on the entry page.
 
 kg = get_graph()
 vulns = vulnerabilities_df()
@@ -27,7 +26,7 @@ entries = entry_points_df()
 
 st.title("Semantic Cyber-Security & Risk Analytics")
 st.caption(
-    "Attack-path discovery over an RDF/OWL knowledge graph. Everything below is " "inferred ."
+    "Attack-path discovery over an RDF/OWL knowledge graph. Everything below is inferred ."
 )
 
 c1, c2, c3, c4 = st.columns(4)

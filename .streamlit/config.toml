@@ -12,3 +12,8 @@ backgroundColor = "#0d0d0d"           # page plane
 secondaryBackgroundColor = "#1a1a19"  # cards, sidebar, chart surface
 textColor = "#ffffff"
 font = "sans serif"
+
+primaryColor = "#6f6bef"              # slider fill + thumb, matches theme.SLOT_1
+borderColor = "#26282d"               # slider track, matches theme.BORDER
+baseRadius = "8px"
+showWidgetBorder = true

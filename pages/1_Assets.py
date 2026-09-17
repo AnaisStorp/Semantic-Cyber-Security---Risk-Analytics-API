@@ -49,7 +49,7 @@ if not view.empty:
     if vulns:
         st.dataframe(pd.DataFrame(vulns), use_container_width=True, hide_index=True)
         st.caption(
-            "Derived by the OWL property chain `runs ∘ usesSoftware ∘ affectedBy` — "
+            "Derived by the OWL property chain `runs -> usesSoftware -> affectedBy`, "
             "no triple links this host directly to any CVE."
         )
     else:

@@ -1,21 +1,26 @@
-"""design token for the dashboard: 1 place for every color"""
+"""Design tokens for the dashboard: one place for every colour."""
 
 from __future__ import annotations
 
 FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif"
 
-SURFACE = "#1a1a19"
-PLANE = "#0d0d0d"
-INK_PRIMARY = "#ffffff"
-INK_SECONDARY = "#c3c2b7"
-INK_MUTED = "#898781"
-GRID = "#2c2c2a"
-BASELINE = "#383835"
+PLANE = "#08090a" 
+SURFACE = "#111214"  
+SURFACE_RAISED = "#17191c" 
+BORDER = "#26282d" 
 
-SLOT_1 = "#3987e5"  # blue
-SLOT_2 = "#d95926"  # orange
-SLOT_3 = "#199e70"  # aqua
-SLOT_4 = "#c98500"  # yellow
+INK_PRIMARY = "#f4f4f5" 
+INK_SECONDARY = "#a1a1aa"
+INK_MUTED = "#71717a" 
+
+GRID = "#1e2024"  
+BASELINE = "#2a2d32"  
+NODE_NEUTRAL = "#22252a"  
+
+SLOT_1 = "#6f6bef"  
+SLOT_2 = "#13a3a3" 
+SLOT_3 = "#c98500" 
+SLOT_4 = "#d55181"
 
 ATTACK_VECTOR_COLORS: dict[str, str] = {
     "AV_Network": SLOT_1,
