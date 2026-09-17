@@ -1,5 +1,9 @@
 # Semantic Cyber-Security & Risk Analytics
 
+[![CI](https://github.com/AnaisStorp/Semantic-Cyber-Security---Risk-Analytics-API/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AnaisStorp/Semantic-Cyber-Security---Risk-Analytics-API/actions/workflows/ci.yml)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
+[![uv](https://img.shields.io/badge/deps-uv-de5fe9)](https://docs.astral.sh/uv/)
+![Docker](https://img.shields.io/badge/docker-ready-2496ed)
 
 A vulnerability scanner tells you which machines have bad locks.
 This tells you which bad lock an attacker on the internet can actually reach, and what is behind it.
@@ -132,32 +136,30 @@ docker run --rm -p 8501:8501 <anaisstorp>/scsra:latest
 ### Make
 
 ```bash
-make help # list every target
-make install # venv + dependencies + git hooks
-make check  # lint and test, exactly what CI runs
-make run  # the dashboard
-make up  # dashboard + API in containers
+make help     # list every target
+make install  # .venv from uv.lock + git hooks
+make check    # lint and test, like CI
+make run      # the dashboard
+make api      # the REST API
+make up       # dashboard + API in containers
 ```
 
 ### Locally
 
-Python 3.12.
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/). It installs Python 3.12 itself if needed.
 
 ```bash
-git clone https://github.com/<anaisstorp>/Semantic-Cyber-Security---Risk-Analytics-API.git
+git clone https://github.com/AnaisStorp/Semantic-Cyber-Security---Risk-Analytics-API.git
 cd Semantic-Cyber-Security---Risk-Analytics-API
 
-python3 -m venv .venv
-source .venv/bin/activate # Windows: jsp enfaite (TODO)
-python -m pip install -r requirements-dev.txt
-
-streamlit run streamlit_app.py
+uv sync --locked                       # exact versions from uv.lock
+uv run streamlit run streamlit_app.py
 ```
 
 The REST API is a second entry point onto the same graph layer:
 
 ```bash
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 -> **http://localhost:8000/docs** for interactive OpenAPI documentation.
@@ -256,6 +258,8 @@ ontology/
 data/samples/                    example scanner export
 pages/                           Streamlit pages
 tests/                           67 tests
+pyproject.toml                   dependencies and tool config
+uv.lock                          exact versions of every package
 ```
 
 Dependencies point one way only: `routes → deps → graph → config`. Nothing in `app/graph/` knows a web server exists, which is why swapping the in-memory store for a remote triple store touches one file.
@@ -264,9 +268,9 @@ Dependencies point one way only: `routes → deps → graph → config`. Nothing
 ## Tests
 
 ```bash
-pytest -v            # 67 tests
-ruff check .         # lint
-ruff format --check . # formatting
+uv run pytest -v               # 67 tests
+uv run ruff check .            # lint
+uv run ruff format --check .   # formatting
 ```
 
 ### Why these are the tests
@@ -300,22 +304,30 @@ This caught a genuine bug: the attack-vector normaliser mapped `AV:N → AV_Netw
 
 [GitHub Actions](.github/workflows/ci.yml) runs on every push and pull request:
 
-1. lint (`ruff check`)
-2. formatting (`ruff format --check`)
-3. tests (`pytest`)
-4. build the Docker image
-5. **start the container and probe its health endpoint**
+1. install dependencies (`uv sync --locked`)
+2. lint (`ruff check`)
+3. formatting (`ruff format --check`)
+4. tests with coverage (`pytest`)
+5. build the Docker image
+6. **start the container and probe its health endpoint**
 
-Step 5 is the one that matters. `docker build` succeeding only proves the image assembles. Starting it and getting a 200 back proves the application inside actually serves traffic — which is where the `--server.address=0.0.0.0` class of bug gets caught.
+Step 1 fails if `uv.lock` is out of date with `pyproject.toml`, so the tested environment is always the locked one.
 
-CI running on a clean machine is also the only real proof that `requirements.txt` is complete. Tests passing locally prove nothing: your laptop has your venv, your Python, your leftover packages.
+Step 6 is the one that matters. `docker build` succeeding only proves the image assembles. Starting it and getting a 200 back proves the application inside actually serves traffic — which is where the `--server.address=0.0.0.0` class of bug gets caught.
+
+CI running on a clean machine is also the only real proof that the dependencies are complete. Tests passing locally prove nothing: your laptop has your venv, your Python, your leftover packages.
+
+Pushing a `v*` tag runs [release.yml](.github/workflows/release.yml), which publishes a multi-architecture image to Docker Hub.
 
 
 ## Reproducibility
 
-- Every dependency pinned to an exact version
-- Base image pinned (`python:3.12-slim`)
+- **One lockfile for everything.** `uv.lock` pins every package, including indirect ones, with hashes. Local, CI and Docker all install from it with `--locked`
+- Python version pinned (`.python-version`), uv version pinned in CI and Docker
+- Base image pinned by digest (`python:3.12-slim`)
 - Dependencies installed in their own Docker layer before the source is copied, so editing a page rebuilds in seconds
+- Dev tools (pytest, ruff) stay out of the image (`--no-dev`)
+- Pre-commit hooks run ruff, keep `uv.lock` in sync, and run the tests before each push
 - No dataset downloads, no network access needed at runtime — the sample estate ships with the repository
 - The container runs as a non-root user
 - Configuration through environment variables, never code changes

@@ -1,0 +1,8 @@
+Hostname,IP Address,Zone,Criticality,Service,Port,Product,Version,CVE ID,CVSS Score,Attack Vector,Detected At
+web01.corp.example,203.0.113.10,zone_dmz,3,nginx,443,nginx,1.18.0,CVE-2021-23017,7.7,AV:N,2026-09-15
+app01.corp.example,10.20.0.15,zone_internal,4,tomcat,8080,Apache Tomcat,9.0.30,CVE-2020-1938,9.8,NETWORK,2026-09-15
+app01.corp.example,10.20.0.15,zone_internal,4,ssh,22,OpenSSH,8.2p1,CVE-2020-15778,7.4,AV:A,2026-09-15
+db01.corp.example,10.30.0.5,zone_data,5,postgres,5432,PostgreSQL,13.3,CVE-2022-1552,8.8,AV:N,2026-09-15
+backup01.corp.example,10.30.0.20,zone_data,5,ssh,22,OpenSSH,8.2p1,CVE-2020-15778,7.4,Adjacent,2026-09-15
+ws-analyst-07.corp.example,10.20.5.7,zone_internal,2,firefox,,Mozilla Firefox ESR,128.0,,,,2026-09-15
+web01.corp.example,203.0.113.10,zone_dmz,3,nginx,443,nginx,1.18.0,CVE-2021-23017,7.7,AV:N,2026-09-14

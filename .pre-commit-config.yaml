@@ -1,5 +1,4 @@
-# Git hooks that run before a commit is created. Install once with:
-#   pre-commit install
+# Git hooks. Installed by `make install`.
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -7,14 +6,17 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: check-yaml # catches a broken ci.yml before you push it
-      - id: check-toml  # same for pyproject.toml
+      - id: check-yaml
+      - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=1000"]
       - id: detect-private-key
-        # Scans for anything shaped like a private key. In a security-themed
-        # repository, committing one would be a spectacular own goal.
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.11.12
+    hooks:
+      - id: uv-lock  # keeps uv.lock in sync with pyproject.toml
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.6
@@ -27,7 +29,7 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: pytest -q
+        entry: uv run pytest -q
         language: system
         pass_filenames: false
         stages: [pre-push]

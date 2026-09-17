@@ -1,3 +1,34 @@
+[project]
+name = "scsra"
+version = "0.1.0"
+description = "Semantic cyber-security risk analytics: Streamlit dashboard and FastAPI over an RDF/OWL knowledge graph."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "rdflib==7.1.1",              # RDF graph + SPARQL engine
+    "owlrl==7.1.2",               # OWL 2 RL reasoner
+    "pydantic==2.13.5",
+    "pydantic-settings==2.7.1",
+    "httpx==0.28.1",
+    "streamlit==1.41.1",
+    "altair==5.5.0",
+    "pandas==2.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.4",
+    "pytest-asyncio==0.25.0",
+    "pytest-cov==6.0.0",
+    "ruff==0.8.6",
+    "pre-commit==4.0.1",
+]
+
+[tool.uv]
+package = false  # an app, not a library: nothing to build
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
