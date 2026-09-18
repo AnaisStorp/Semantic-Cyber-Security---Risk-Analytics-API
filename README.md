@@ -45,7 +45,7 @@ So I modelled the estate as a graph, wrote down the rules of the domain in OWL, 
 
 On the five host sample estate: **317 hand written triples in, 644 derived triples out**, including a three hop path from the DMZ to the backup server that appears in no source file.
 
-A note on the CSV, so nobody is surprised: the dashboard and the API run on the sample estate in `ontology/`. The scanner pipeline is shown on the Import page, where you can upload an export and watch each step. The same export can be merged into the analysis with `KnowledgeGraph(csv_sources=[...])`, and a test checks that the CSV and the Turtle files describe the exact same hosts.
+A note on the CSV, so no suprises: the dashboard and the API run on the sample estate in `ontology/`. The scanner pipeline is shown on the Import page, where you can upload an export and watch each step. The same export can be merged into the analysis with `KnowledgeGraph(csv_sources=[...])`, and a test checks that the CSV and the Turtle files describe the exact same hosts.
 
 
 ## How it works
@@ -62,7 +62,7 @@ corp:sw_nginx_1_18_0 scs:affectedBy   corp:CVE-2021-23017 .
 
 A pile of triples *is* a graph: subjects and objects are nodes, predicates are labelled edges.
 
-### Two inference engines, because one is not enough
+### Two inference engines
 
 I never state that `web01` is vulnerable. It follows.
 
@@ -124,12 +124,12 @@ Then open the dashboard at http://localhost:8501 and the API docs at http://loca
 ### Make
 
 ```bash
-make help     # list every target
+make help # list every target
 make install  # create .venv from uv.lock and install git hooks
-make check    # lint and test, like CI
-make run      # the dashboard
-make api      # the REST API
-make up       # dashboard and API in containers
+make check # lint and test, like CI
+make run  # the dashboard
+make api # the REST API
+make up # dashboard and API in containers
 ```
 
 ### Locally
@@ -140,7 +140,7 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/). It insta
 git clone https://github.com/AnaisStorp/Semantic-Cyber-Security---Risk-Analytics-API.git
 cd Semantic-Cyber-Security---Risk-Analytics-API
 
-uv sync --locked                       # exact versions from uv.lock
+uv sync --locked # exact versions from uv.lock
 uv run streamlit run streamlit_app.py
 ```
 
@@ -151,6 +151,28 @@ uv run uvicorn app.main:app --reload
 ```
 
 Interactive OpenAPI docs are at **http://localhost:8000/docs**.
+
+### Without uv
+
+`requirements.txt` is there for environments that only speak pip, a hosted
+dashboard for instance. It is **generated from `uv.lock`, never edited by hand**,
+so it holds the same 67 packages at the same versions:
+
+```bash
+uv export --no-dev --no-emit-project --no-hashes --format requirements-txt -o requirements.txt
+```
+
+Install it the usual way:
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+
+Regenerate it whenever `pyproject.toml` or `uv.lock` changes, otherwise the two
+drift apart. `uv sync --locked` stays the reference install: it is the one CI and
+Docker use, and the only one that checks hashes.
 
 ### Configuration
 
@@ -168,7 +190,7 @@ Copy `app/.env.example` to `.env`. Everything is optional, the defaults in `app/
 
 | Page | What it shows |
 |---|---|
-| **Overview** | Key numbers for the estate, the riskiest path, a severity chart, what the reasoner added at each stage, and a data quality panel (OWL contradictions and SHACL violations) |
+| **Overview** | Key numbers for the estate, the riskiest path, a severity chart, what the reasoner added at each stage |
 | **Assets** | Filterable inventory, with each host's inferred vulnerabilities and blast radius |
 | **Attack Paths** | Every path with **evidence for each hop**: which CVE justifies each move, and which flaws are present but *not usable from that position* |
 | **Network** | The estate as a diagram. Grey edges are the firewall rules, red edges are the ones an attacker can actually walk |
@@ -247,7 +269,8 @@ One policy decision worth stating: **a corrupt finding does not delete the asset
 | `pages/` | Streamlit pages |
 | `tests/` | 96 tests |
 | `pyproject.toml` | dependencies and tool config |
-| `uv.lock` | exact versions of every package |
+| `uv.lock` | exact versions of every package, the reference install |
+| `requirements.txt` | generated from `uv.lock` for pip-only environments |
 
 Dependencies only go one way: routes use deps, deps use the graph, the graph uses config. Nothing in `app/graph/` knows a web server exists, which is why swapping the in memory store for a remote triple store touches one file.
 
@@ -255,9 +278,9 @@ Dependencies only go one way: routes use deps, deps use the graph, the graph use
 ## Tests
 
 ```bash
-uv run pytest -v               # 96 tests
-uv run ruff check .            # lint
-uv run ruff format --check .   # formatting
+uv run pytest -v  # 96 tests
+uv run ruff check . # lint
+uv run ruff format --check . # formatting
 ```
 
 Coverage is around 94%.
@@ -275,17 +298,7 @@ This is not hypothetical. During development a single missing argument disabled 
 
 **Negative assertions always come with a positive one.** `assert CVE_X not in remotely_exploitable` passes trivially when the whole feature is dead, so on its own it means nothing.
 
-**SHACL tests damage a copy of the graph on purpose**: a host without an IP address, a CVSS score of 12, a typo in the attack vector, `"true"` written as a string. Each one must come back as a named violation. One test goes through the whole pipeline to show why OWL alone is not enough: a CVE given a `hostname` by mistake is silently retyped as a Host by `rdfs:domain`, and only the shapes notice that this "host" has no IP and no zone.
-
 **The ingestion tests are mostly about failure**: missing columns, malformed CSV, scores out of range, boundary values at exactly 0.0 and 10.0, unknown attack vectors. Real input is broken far more often than it is valid. Every filter in `filters.py` has its own test.
-
-**Idempotence is tested explicitly:**
-
-```python
-pd.testing.assert_frame_equal(clean(df), clean(clean(df)))
-```
-
-This caught a real bug. The attack vector normaliser turned `AV:N` into `AV_Network`, but did not accept `AV_Network` as input, so cleaning data that was already clean deleted every finding. A normalisation function has to satisfy `f(f(x)) == f(x)`, and that is not obvious until a test says so.
 
 **The API tests call every endpoint in process** through `httpx`, without starting a server. They check the happy paths, but also that an unknown host gives a 404, a malformed id or a huge `max_depth` gets rejected with a 422, a SPARQL `INSERT` is refused, the row cap actually truncates, and the endpoint can be switched off.
 
@@ -315,6 +328,7 @@ Pushing a version tag (like `v0.1.0`) runs [release.yml](.github/workflows/relea
 ## Reproducibility
 
 * **One lockfile for everything.** `uv.lock` pins every package, indirect ones included, with hashes. My machine, CI and Docker all install from it with `--locked`
+* `requirements.txt` exists only for pip-only hosts, and is exported from that same lockfile rather than maintained separately
 * The Python version is pinned in `.python-version`, and the uv version is pinned in CI and Docker
 * The base image is pinned by digest (`python:3.12-slim`)
 * Dependencies are installed in their own Docker layer before the code is copied, so editing a page rebuilds in seconds
